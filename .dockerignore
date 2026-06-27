@@ -1,0 +1,15 @@
+# Build artifacts
+target/
+debug/
+
+# Local config (keep secrets out of the image)
+config.toml
+
+# Editor/OS clutter
+.git/
+.gitignore
+.idea/
+.vscode/
+*.rs.bk
+*.pdb
+**/mutants.out*/

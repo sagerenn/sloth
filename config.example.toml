@@ -1,0 +1,40 @@
+# Sloth agent example configuration. Copy to config.toml and edit.
+# Every field below can also be overridden by a SLOTH_* env var.
+
+[bridge]
+# WebSocket URL of the OpenClaw bridge.
+url = "ws://127.0.0.1:9300/bridge"
+# Channel id to subscribe to (matches the plugin's openclaw.plugin.json id).
+channel = "liangzimixin"
+# Account id within the channel.
+account_id = "default"
+# Reconnect backoff base (ms) — the loop reconnects with this delay.
+reconnect_ms = 1000
+# Maximum reconnect backoff (ms).
+reconnect_max_ms = 30000
+# Heartbeat ping interval (ms). 0 disables.
+heartbeat_ms = 25000
+
+[llm]
+# OpenAI-compatible base URL.
+base_url = "http://172.17.0.1:8317/v1"
+# Model id.
+model = "glm-5.2"
+# Optional API key. Leave unset for the local gateway (it needs none and
+# rejects unknown bearer tokens; the SDK sends an empty bearer when unset).
+# api_key = ""
+system_prompt = "You are Sloth, a friendly, concise AI assistant replying over a chat bridge. Keep replies short and natural."
+temperature = 0.7
+max_tokens = 1024
+timeout_secs = 60
+
+[history]
+# Max messages kept per sender (excluding the system prompt).
+max_messages = 20
+
+[observability]
+# Log format: "text", "pretty", or "json".
+log_format = "text"
+# tracing filter directive.
+log_filter = "info,sloth_agent=debug"
+service_name = "sloth-agent"

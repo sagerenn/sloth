@@ -1,0 +1,189 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+    tags: ["v*"]
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  # ─── test ───────────────────────────────────────────────────────────────────
+  test:
+    name: Test & lint (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+
+      - name: Cache cargo registry & target
+        uses: Swatinem/rust-cache@v2
+
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+
+      - name: Clippy
+        # -D warnings makes clippy fail the build on any lint.
+        run: cargo clippy --all-targets -- -D warnings
+
+      - name: Build
+        run: cargo build --all-targets
+
+      - name: Test (default, non-live)
+        # Live tests (#[ignore]) need the gateway and are skipped by default.
+        run: cargo test --all-targets
+
+      - name: Validate example config
+        run: cargo run --example validate_cfg -- --config config.example.toml
+
+  # ─── docker (multi-arch build & push) ──────────────────────────────────────
+  docker:
+    name: Docker ${{ matrix.platform }}
+    needs: test
+    # Only build/push images on the default branch or a tag. PRs get a build
+    # check (no push) so contributors see breakages without needing secrets.
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: amd64
+            os: ubuntu-latest
+          - platform: arm64
+            os: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Docker meta (tags & labels)
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha,prefix=sha-,format=short
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GHCR
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push by digest
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          # Build each platform on its native runner (no QEMU) for speed.
+          platforms: linux/${{ matrix.platform }}
+          labels: ${{ steps.meta.outputs.labels }}
+          # On non-PR events: push each platform by digest (manifest assembled
+          # later). On PRs: build only (no push) to catch Dockerfile breakage.
+          push: ${{ github.event_name != 'pull_request' }}
+          outputs: ${{ github.event_name != 'pull_request' && format('type=registry,name=ghcr.io/{0},push-by-digest=true', github.repository) || '' }}
+          cache-from: type=gha,scope=${{ matrix.platform }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.platform }}
+
+      - name: Export digest
+        if: github.event_name != 'pull_request'
+        run: |
+          mkdir -p /tmp/digests
+          digest="${{ steps.build.outputs.digest }}"
+          touch "/tmp/digests/${digest#sha256:}"
+
+      - name: Upload digest
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: digest-${{ matrix.platform }}
+          path: /tmp/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  # ─── manifest (assemble multi-arch image) ──────────────────────────────────
+  manifest:
+    name: Assemble multi-arch manifest
+    needs: docker
+    runs-on: ubuntu-latest
+    if: github.event_name != 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download digests
+        uses: actions/download-artifact@v4
+        with:
+          path: /tmp/digests
+          pattern: digest-*
+          merge-multiple: true
+
+      - name: Collect digest references
+        id: digests
+        run: |
+          set -euo pipefail
+          refs=""
+          while IFS= read -r f; do
+            hash="$(cat "$f")"
+            refs="$refs ghcr.io/${{ github.repository }}@sha256:$hash"
+          done < <(find /tmp/digests -type f)
+          echo "refs=$refs" >> "$GITHUB_OUTPUT"
+          echo "Digests to join:$refs"
+
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=ref,event=branch
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha,prefix=sha-,format=short
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create manifest list and tag
+        env:
+          TAGS: ${{ steps.meta.outputs.tags }}
+          REFS: ${{ steps.digests.outputs.refs }}
+        run: |
+          set -euo pipefail
+          # Join all per-platform digests into one multi-arch manifest, then
+          # apply every tag produced by docker/metadata-action.
+          while IFS= read -r tag; do
+            [ -n "$tag" ] || continue
+            docker buildx imagetools create -t "$tag" $REFS
+          done <<< "$TAGS"
+
