@@ -52,6 +52,44 @@ jobs:
       - name: Validate example config
         run: cargo run --example validate_cfg -- --config config.example.toml
 
+  # ─── Mattermost E2E (full round-trip through the published bridge image) ────
+  # Drives the real sloth runtime + live LLM against a real Mattermost server
+  # and the published OpenClaw bridge Docker image. The test brings up both
+  # containers itself (see tests/mattermost_e2e.rs): a mattermost-preview
+  # server and ghcr.io/sagerenn/openclaw-bridge, on a shared Docker network,
+  # provisions a bot + human sender, then exchanges 3 messages round-trip
+  #   Mattermost user -> bridge -> sloth -> LLM -> reply -> user
+  # It skips (not fails) when the LLM gateway is unreachable, so it is safe to
+  # run in any environment. Set SLOTH_LLM_BASE_URL (and optionally
+  # SLOTH_LLM_MODEL / SLOTH_LLM_API_KEY) to actually exercise it.
+  e2e-mattermost:
+    name: Mattermost E2E (real server + bridge image)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+
+      - name: Cache cargo registry & target
+        uses: Swatinem/rust-cache@v2
+
+      - name: Pull bridge + mattermost images
+        run: |
+          docker pull ghcr.io/sagerenn/openclaw-bridge:latest
+          docker pull mattermost/mattermost-preview:latest
+
+      - name: Run Mattermost round-trip E2E test (3 messages)
+        env:
+          SLOTH_LLM_BASE_URL: ${{ secrets.SLOTH_LLM_BASE_URL }}
+          SLOTH_LLM_MODEL: ${{ secrets.SLOTH_LLM_MODEL }}
+          SLOTH_LLM_API_KEY: ${{ secrets.SLOTH_LLM_API_KEY }}
+        run: cargo test --test mattermost_e2e -- --nocapture --ignored
+
   # ─── docker (multi-arch build & push) ──────────────────────────────────────
   docker:
     name: Docker ${{ matrix.platform }}

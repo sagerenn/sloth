@@ -65,6 +65,13 @@ pub struct InboundMessage {
     #[serde(default)]
     pub chat_id: String,
     pub sender_id: String,
+    /// Bridge-provided ready-to-echo reply target (the `to` for `send_text`).
+    /// Channel-specific — e.g. mattermost DMs use `user:<id>`, groups use
+    /// `channel:<id>`. When present we echo it verbatim so the agent needs no
+    /// per-channel target-format knowledge. Absent for channels/bridges that
+    /// don't supply it; `runtime::format_reply_target` is the fallback.
+    #[serde(default)]
+    pub reply_to: Option<String>,
     #[serde(default)]
     pub sender_name: Option<String>,
     /// e.g. "text" | "markdown" | "image" | ...

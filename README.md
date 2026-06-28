@@ -69,6 +69,31 @@ cargo test -- --ignored       # live tests against the real LLM gateway
 The live end-to-end test (`tests/bridge_e2e.rs`) spins up a mock OpenClaw bridge
 WS server and verifies the full inbound -> LLM -> reply round trip.
 
+### Mattermost E2E (real server + published bridge image)
+
+`tests/mattermost_e2e.rs` exercises the full pipeline against real services: it
+launches a `mattermost/mattermost-preview` server and the published
+`ghcr.io/sagerenn/openclaw-bridge` Docker image on a shared network, provisions
+a bot + human sender, runs the real sloth runtime + live LLM in-process, and
+exchanges 3 messages round-trip:
+
+```
+Mattermost user -> bridge -> sloth -> LLM -> reply -> user
+```
+
+It skips (rather than fails) when the LLM gateway or Docker is unavailable.
+Docker is required on the host.
+
+```bash
+cargo test --test mattermost_e2e -- --nocapture --ignored
+```
+
+Overrides (env vars): `SLOTH_LLM_BASE_URL` / `SLOTH_LLM_MODEL` / `SLOTH_LLM_API_KEY`
+(the gateway), `E2E_BRIDGE_IMAGE` (default `ghcr.io/sagerenn/openclaw-bridge:latest`),
+`E2E_MM_IMAGE` (default `mattermost/mattermost-preview:latest`), `E2E_BRIDGE_PORT`
+(default 19499), `E2E_BRIDGE_PORT_MM` (default 18065). The job runs in CI; set the
+`SLOTH_LLM_*` secrets to actually exercise it (otherwise it skips).
+
 ## Layout
 
 ```
@@ -79,8 +104,9 @@ src/
   runtime.rs     connect / subscribe / heartbeat / reconnect loop
   main.rs        thin binary: init tracing, drive runtime, signal handling
 tests/
-  agent_live.rs  live ChatAgent tests against the gateway
-  bridge_e2e.rs  live end-to-end round trip through a mock bridge
+  agent_live.rs       live ChatAgent tests against the gateway
+  bridge_e2e.rs       live end-to-end round trip through a mock bridge
+  mattermost_e2e.rs   live round trip through a real Mattermost server + bridge image
 ```
 
 ## License

@@ -252,6 +252,7 @@ async fn handle_text(
 
             // Generate a reply.
             let sender_id = msg.sender_id.clone();
+            let reply_target = resolve_reply_target(channel, &msg);
             let reply = match agent.reply(&sender_id, user_text).await {
                 Ok(r) => r,
                 Err(e) => {
@@ -262,7 +263,7 @@ async fn handle_text(
                     let env = build_send_text(
                         channel,
                         account_id,
-                        &msg.sender_id,
+                        &reply_target,
                         err_text,
                         msg.reply_to_message_id.as_deref(),
                         msg.context_token.as_deref(),
@@ -282,7 +283,7 @@ async fn handle_text(
             let env = build_send_text(
                 channel,
                 account_id,
-                &msg.sender_id,
+                &reply_target,
                 &reply.text,
                 msg.reply_to_message_id.as_deref(),
                 msg.context_token.as_deref(),
@@ -291,6 +292,41 @@ async fn handle_text(
                 tracing::warn!("outbound channel closed; dropping reply");
             }
         }
+    }
+}
+
+/// Resolve the outbound `to` target for replying to `msg`.
+///
+/// Prefers the bridge-provided `replyTo` field — a ready-to-echo target the
+/// channel adapter computes from the inbound context (e.g. mattermost sets
+/// `user:<id>` for DMs, `channel:<id>` for groups). Using it keeps the agent
+/// free of per-channel target-format knowledge: the bridge is the single
+/// source of truth. Falls back to [`format_reply_target`] for channels or
+/// bridge versions that don't populate `replyTo`.
+fn resolve_reply_target(channel: &str, msg: &crate::bridge::InboundMessage) -> String {
+    if let Some(rt) = msg.reply_to.as_deref()
+        && !rt.is_empty()
+    {
+        return rt.to_string();
+    }
+    format_reply_target(channel, &msg.sender_id)
+}
+
+/// Fallback outbound `to` target when the bridge supplies no `replyTo`.
+///
+/// The bridge protocol's `send_text` `to` field is a channel-specific target
+/// string. For DM channels like mattermost, a bare user id is rejected with
+/// `403 Forbidden` — the plugin's outbound resolver only recognizes the
+/// `user:<id>` form for direct messages (and `channel:<id>` for group
+/// channels). Other channels (e.g. liangzimixin) take the sender id verbatim,
+/// so we only rewrite when the channel expects the `user:` prefix. We also
+/// avoid double-prefixing if the inbound sender id already carries a scheme.
+fn format_reply_target(channel: &str, sender_id: &str) -> String {
+    let bare = !sender_id.contains(':');
+    if bare && channel == "mattermost" {
+        format!("user:{sender_id}")
+    } else {
+        sender_id.to_string()
     }
 }
 
