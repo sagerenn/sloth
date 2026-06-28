@@ -41,10 +41,16 @@ pub struct ToolOutcome {
 
 impl ToolOutcome {
     fn ok(content: impl Into<String>) -> Self {
-        Self { content: content.into(), is_error: false }
+        Self {
+            content: content.into(),
+            is_error: false,
+        }
     }
     fn err(content: impl Into<String>) -> Self {
-        Self { content: content.into(), is_error: true }
+        Self {
+            content: content.into(),
+            is_error: true,
+        }
     }
 }
 
@@ -417,18 +423,11 @@ impl ToolRouter {
 
     /// Execute a tool call by name with the given arguments object.
     /// Applies HITL gating where configured.
-    pub async fn execute(
-        &self,
-        tool: &str,
-        args: &Value,
-        sender_id: &str,
-    ) -> ToolOutcome {
+    pub async fn execute(&self, tool: &str, args: &Value, sender_id: &str) -> ToolOutcome {
         // HITL gate.
         if self.hitl.requires_confirmation(tool) {
             let summary = summarize_call(tool, args);
-            let pending = self
-                .hitl
-                .new_pending(tool, &summary, "default", sender_id);
+            let pending = self.hitl.new_pending(tool, &summary, "default", sender_id);
             info!(%tool, hitl_id = %pending.id, "HITL confirmation requested");
             // Register + surface to the runtime; it asks the human and calls
             // `hitl.resolve(...)` with the decision.
@@ -438,9 +437,7 @@ impl ToolRouter {
             match outcome {
                 Outcome::Approved => info!(%tool, "HITL approved"),
                 Outcome::Denied => {
-                    return ToolOutcome::err(format!(
-                        "Tool call {tool} was denied by the human."
-                    ));
+                    return ToolOutcome::err(format!("Tool call {tool} was denied by the human."));
                 }
                 Outcome::TimedOut => {
                     return ToolOutcome::err(format!(
@@ -497,9 +494,7 @@ impl ToolRouter {
                     return ToolOutcome::err("missing 'session_id'");
                 };
                 match self.sessions.switch(sender_id, session_id).await {
-                    Ok(s) => ToolOutcome::ok(
-                        serde_json::to_string(&s).unwrap_or_default(),
-                    ),
+                    Ok(s) => ToolOutcome::ok(serde_json::to_string(&s).unwrap_or_default()),
                     Err(e) => ToolOutcome::err(format!("{e:#}")),
                 }
             }
@@ -515,9 +510,7 @@ impl ToolRouter {
                     .set_workspace(session_id, workspace.into())
                     .await
                 {
-                    Ok(s) => ToolOutcome::ok(
-                        serde_json::to_string(&s).unwrap_or_default(),
-                    ),
+                    Ok(s) => ToolOutcome::ok(serde_json::to_string(&s).unwrap_or_default()),
                     Err(e) => ToolOutcome::err(format!("{e:#}")),
                 }
             }
@@ -529,10 +522,13 @@ impl ToolRouter {
                 let tools = self.mcp.routed_tools().await;
                 let servers: Vec<Value> = tools
                     .iter()
-                    .fold(std::collections::HashMap::<String, u32>::new(), |mut acc, t| {
-                        *acc.entry(t.server.clone()).or_default() += 1;
-                        acc
-                    })
+                    .fold(
+                        std::collections::HashMap::<String, u32>::new(),
+                        |mut acc, t| {
+                            *acc.entry(t.server.clone()).or_default() += 1;
+                            acc
+                        },
+                    )
                     .into_iter()
                     .map(|(s, n)| json!({ "server": s, "tools": n }))
                     .collect();
@@ -601,9 +597,10 @@ impl ToolRouter {
                     Err(e) => ToolOutcome::err(format!("MCP tool call failed: {e:#}")),
                 }
             }
-            other if other.starts_with(names::A2A_PREFIX)
-                && other != names::A2A_LIST
-                && other != names::A2A_RELOAD =>
+            other
+                if other.starts_with(names::A2A_PREFIX)
+                    && other != names::A2A_LIST
+                    && other != names::A2A_RELOAD =>
             {
                 let agent = other
                     .strip_prefix(names::A2A_PREFIX)
@@ -623,9 +620,10 @@ impl ToolRouter {
                     Err(e) => ToolOutcome::err(format!("A2A agent call failed: {e:#}")),
                 }
             }
-            other if other.starts_with(names::SKILL_PREFIX)
-                && other != names::SKILL_LIST
-                && other != names::SKILL_RELOAD =>
+            other
+                if other.starts_with(names::SKILL_PREFIX)
+                    && other != names::SKILL_LIST
+                    && other != names::SKILL_RELOAD =>
             {
                 let skill = other
                     .strip_prefix(names::SKILL_PREFIX)
@@ -665,9 +663,7 @@ impl ToolRouter {
                 let picked = self.catalog.pick(&opts).await;
                 let explanation = crate::model_catalog::explain_pick(picked.as_ref(), &all, &opts);
                 let id = picked.as_ref().map(|m| m.id.clone()).unwrap_or_default();
-                ToolOutcome::ok(
-                    json!({ "model": id, "explanation": explanation }).to_string(),
-                )
+                ToolOutcome::ok(json!({ "model": id, "explanation": explanation }).to_string())
             }
             names::MEM_SET => {
                 let Some(key) = args.get("key").and_then(|v| v.as_str()) else {
@@ -681,19 +677,17 @@ impl ToolRouter {
                     Err(e) => ToolOutcome::err(format!("memory set failed: {e:#}")),
                 }
             }
-            names::MEM_RECALL => {
-                match self.memory.recall(sender_id).await {
-                    Ok(mem) => {
-                        if let Some(key) = args.get("key").and_then(|v| v.as_str()) {
-                            let value = mem.facts.get(key).cloned();
-                            ToolOutcome::ok(json!({ "key": key, "value": value }).to_string())
-                        } else {
-                            ToolOutcome::ok(serde_json::to_string(&mem).unwrap_or_default())
-                        }
+            names::MEM_RECALL => match self.memory.recall(sender_id).await {
+                Ok(mem) => {
+                    if let Some(key) = args.get("key").and_then(|v| v.as_str()) {
+                        let value = mem.facts.get(key).cloned();
+                        ToolOutcome::ok(json!({ "key": key, "value": value }).to_string())
+                    } else {
+                        ToolOutcome::ok(serde_json::to_string(&mem).unwrap_or_default())
                     }
-                    Err(e) => ToolOutcome::err(format!("memory recall failed: {e:#}")),
                 }
-            }
+                Err(e) => ToolOutcome::err(format!("memory recall failed: {e:#}")),
+            },
             other => ToolOutcome::err(format!("unknown tool: {other}")),
         }
     }
@@ -718,7 +712,10 @@ fn summarize_call(tool: &str, args: &Value) -> String {
             args.get("name").and_then(|v| v.as_str()).unwrap_or("?"),
             args.get("cron").and_then(|v| v.as_str()).unwrap_or("?")
         ),
-        names::SCHED_REMOVE => format!("remove job {}", args.get("id").and_then(|v| v.as_str()).unwrap_or("?")),
+        names::SCHED_REMOVE => format!(
+            "remove job {}",
+            args.get("id").and_then(|v| v.as_str()).unwrap_or("?")
+        ),
         names::MCP_RELOAD => "reload remote MCP servers".to_string(),
         _ => format!("call {tool}"),
     }
@@ -733,11 +730,13 @@ fn parse_servers(servers: &Value) -> Vec<McpServerConfig> {
             let name = s.get("name")?.as_str()?.to_string();
             let url = s.get("url")?.as_str()?.to_string();
             let token = s.get("token").and_then(|v| v.as_str()).map(String::from);
-            let timeout_secs = s
-                .get("timeout_secs")
-                .and_then(|v| v.as_u64())
-                .unwrap_or(10);
-            Some(McpServerConfig { name, url, token, timeout_secs })
+            let timeout_secs = s.get("timeout_secs").and_then(|v| v.as_u64()).unwrap_or(10);
+            Some(McpServerConfig {
+                name,
+                url,
+                token,
+                timeout_secs,
+            })
         })
         .collect()
 }
@@ -761,11 +760,13 @@ fn parse_agents(agents: &Value) -> Vec<A2aAgentConfig> {
             let name = s.get("name")?.as_str()?.to_string();
             let url = s.get("url")?.as_str()?.to_string();
             let token = s.get("token").and_then(|v| v.as_str()).map(String::from);
-            let timeout_secs = s
-                .get("timeout_secs")
-                .and_then(|v| v.as_u64())
-                .unwrap_or(30);
-            Some(A2aAgentConfig { name, url, token, timeout_secs })
+            let timeout_secs = s.get("timeout_secs").and_then(|v| v.as_u64()).unwrap_or(30);
+            Some(A2aAgentConfig {
+                name,
+                url,
+                token,
+                timeout_secs,
+            })
         })
         .collect()
 }

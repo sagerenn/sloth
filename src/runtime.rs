@@ -113,9 +113,10 @@ impl AgentContext {
 
         // Eagerly connect any preconfigured MCP servers (best-effort).
         if !cfg.mcp.servers.is_empty()
-            && let Err(e) = mcp.reload(&cfg.mcp.servers).await {
-                tracing::warn!(error = %e, "initial MCP reload reported errors");
-            }
+            && let Err(e) = mcp.reload(&cfg.mcp.servers).await
+        {
+            tracing::warn!(error = %e, "initial MCP reload reported errors");
+        }
 
         // Load skills (best-effort).
         if let Some(dir) = &cfg.skills.dir {
@@ -127,9 +128,10 @@ impl AgentContext {
 
         // Eagerly connect any preconfigured A2A agents (best-effort).
         if !cfg.a2a.agents.is_empty()
-            && let Err(e) = a2a.reload(&cfg.a2a.agents).await {
-                tracing::warn!(error = %e, "initial A2A reload reported errors");
-            }
+            && let Err(e) = a2a.reload(&cfg.a2a.agents).await
+        {
+            tracing::warn!(error = %e, "initial A2A reload reported errors");
+        }
 
         // Memory store directory.
         if let Some(dir) = &cfg.memory.dir {
@@ -307,7 +309,6 @@ pub fn parse_hitl_reply(text: &str) -> Outcome {
     }
 }
 
-
 /// One connection lifecycle: connect → subscribe → pump messages until the
 /// socket closes or errors.
 async fn run_session(
@@ -413,7 +414,15 @@ async fn run_session(
 
         match msg {
             Ok(Message::Text(text)) => {
-                handle_text(text.to_string(), ctx, &mut hitl_rx, &tx, &channel, &account_id).await;
+                handle_text(
+                    text.to_string(),
+                    ctx,
+                    &mut hitl_rx,
+                    &tx,
+                    &channel,
+                    &account_id,
+                )
+                .await;
             }
             Ok(Message::Binary(b)) => {
                 tracing::debug!(len = b.len(), "ignoring binary frame");
@@ -491,7 +500,6 @@ async fn ask_hitl(
     let env = build_send_text(channel, account_id, channel, &text, None, None);
     let _ = tx.send(env).await;
 }
-
 
 /// Parse a text frame as a bridge envelope and dispatch.
 async fn handle_text(

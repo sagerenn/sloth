@@ -57,7 +57,8 @@ pub enum Outcome {
 #[derive(Clone)]
 pub struct HitlBroker {
     inner: Arc<Mutex<Inner>>,
-    pending_tx: Arc<tokio::sync::Mutex<Option<tokio::sync::mpsc::UnboundedSender<PendingConfirmation>>>>,
+    pending_tx:
+        Arc<tokio::sync::Mutex<Option<tokio::sync::mpsc::UnboundedSender<PendingConfirmation>>>>,
     cfg: HitlConfig,
 }
 
@@ -88,7 +89,9 @@ impl HitlBroker {
     }
 
     /// Async variant of `pending_channel` (avoids try_lock edge cases).
-    pub async fn pending_channel_async(&self) -> tokio::sync::mpsc::UnboundedReceiver<PendingConfirmation> {
+    pub async fn pending_channel_async(
+        &self,
+    ) -> tokio::sync::mpsc::UnboundedReceiver<PendingConfirmation> {
         let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
         *self.pending_tx.lock().await = Some(tx);
         rx
@@ -98,10 +101,11 @@ impl HitlBroker {
     pub async fn publish(&self, p: PendingConfirmation) {
         let g = self.pending_tx.lock().await;
         if let Some(tx) = g.as_ref()
-            && tx.send(p).is_err() {
-                // Receiver dropped — the runtime will not see this; the
-                // await_decision timeout will eventually deny it.
-            }
+            && tx.send(p).is_err()
+        {
+            // Receiver dropped — the runtime will not see this; the
+            // await_decision timeout will eventually deny it.
+        }
     }
 
     /// Whether HITL is enabled at all.
@@ -139,10 +143,7 @@ impl HitlBroker {
     }
 
     /// Await a decision, applying the configured timeout as an auto-deny.
-    pub async fn await_decision(
-        &self,
-        rx: oneshot::Receiver<Outcome>,
-    ) -> Outcome {
+    pub async fn await_decision(&self, rx: oneshot::Receiver<Outcome>) -> Outcome {
         let to = Duration::from_secs(self.cfg.timeout_secs.max(1));
         match tokio::time::timeout(to, rx).await {
             Ok(Ok(o)) => o,

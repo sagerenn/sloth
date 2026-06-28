@@ -58,9 +58,9 @@ use base64::Engine as _;
 use futures_util::{SinkExt, StreamExt};
 use serde_json::{Value, json};
 use sloth_agent::config::{
-    A2aConfig, BridgeConfig, CompactConfig, Config, HitlConfig, HistoryConfig, LlmConfig, McpConfig,
-    MemoryConfig, ModelCatalogConfig, ObservabilityConfig, SchedulerConfig, SessionConfig,
-    SkillsConfig,
+    A2aConfig, BridgeConfig, CompactConfig, Config, HistoryConfig, HitlConfig, LlmConfig,
+    McpConfig, MemoryConfig, ModelCatalogConfig, ObservabilityConfig, SchedulerConfig,
+    SessionConfig, SkillsConfig,
 };
 use tokio::sync::{Mutex, oneshot};
 use tokio_tungstenite::tungstenite::Message;

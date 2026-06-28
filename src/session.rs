@@ -171,10 +171,7 @@ mod tests {
     async fn create_switch_workspace_delete() {
         let dir = std::env::temp_dir().join(format!("sloth-sess-{}", uuid::Uuid::new_v4()));
         let sm = SessionManager::new("default", dir);
-        let s = sm
-            .create(Some("work".into()), "Work".into())
-            .await
-            .unwrap();
+        let s = sm.create(Some("work".into()), "Work".into()).await.unwrap();
         assert_eq!(s.id, "work");
         let active = sm.switch("alice", "work").await.unwrap();
         assert_eq!(active.id, "work");

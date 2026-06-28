@@ -102,11 +102,7 @@ impl Scheduler {
 
     /// List all scheduled jobs (parsed cron not exposed).
     pub fn list(&self) -> Vec<ScheduledJob> {
-        self.inner
-            .jobs
-            .iter()
-            .map(|e| e.job.clone())
-            .collect()
+        self.inner.jobs.iter().map(|e| e.job.clone()).collect()
     }
 
     /// Get a job by id.
@@ -227,17 +223,18 @@ mod tests {
     #[test]
     fn remove_and_list() {
         let s = Scheduler::new();
-        let id = s.add_at(
-            ScheduledJob {
-                id: String::new(),
-                name: "j".into(),
-                cron: "*/5 * * * *".into(),
-                prompt: "p".into(),
-                session_id: "default".into(),
-            },
-            0,
-        )
-        .unwrap();
+        let id = s
+            .add_at(
+                ScheduledJob {
+                    id: String::new(),
+                    name: "j".into(),
+                    cron: "*/5 * * * *".into(),
+                    prompt: "p".into(),
+                    session_id: "default".into(),
+                },
+                0,
+            )
+            .unwrap();
         assert_eq!(s.list().len(), 1);
         assert!(s.remove(&id));
         assert!(s.list().is_empty());
@@ -247,8 +244,8 @@ mod tests {
     #[test]
     fn invalid_cron_rejected() {
         let s = Scheduler::new();
-        assert!(s
-            .add_at(
+        assert!(
+            s.add_at(
                 ScheduledJob {
                     id: String::new(),
                     name: "x".into(),
@@ -258,6 +255,7 @@ mod tests {
                 },
                 0,
             )
-            .is_err());
+            .is_err()
+        );
     }
 }

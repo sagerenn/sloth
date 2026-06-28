@@ -51,14 +51,7 @@ impl Cron {
     ///
     /// Day-of-month and day-of-week follow Vixie cron semantics: when both are
     /// restricted (not wildcard), a match on *either* satisfies the day.
-    pub fn matches(
-        &self,
-        minute: u8,
-        hour: u8,
-        day: u8,
-        month: u8,
-        weekday: u8,
-    ) -> bool {
+    pub fn matches(&self, minute: u8, hour: u8, day: u8, month: u8, weekday: u8) -> bool {
         let m = bit(self.fields[0], minute);
         let h = bit(self.fields[1], hour);
         let dom = bit(self.fields[2], day);
@@ -72,7 +65,7 @@ impl Cron {
         if !m || !h || !mon {
             return false;
         }
-        
+
         if dom_wild || dow_wild {
             dom && dow
         } else {
@@ -164,11 +157,7 @@ fn parse_item(item: &str, (lo, hi): (u8, u8)) -> Result<u64> {
 fn parse_value(s: &str, (lo, hi): (u8, u8)) -> Result<u8> {
     let v = parse_u8(s, (lo, hi))?;
     // Day-of-week field uses hi=7 to allow `7` for Sunday; collapse onto 0.
-    if hi == 7 && v == 7 {
-        Ok(0)
-    } else {
-        Ok(v)
-    }
+    if hi == 7 && v == 7 { Ok(0) } else { Ok(v) }
 }
 
 fn parse_u8(s: &str, (lo, hi): (u8, u8)) -> Result<u8> {

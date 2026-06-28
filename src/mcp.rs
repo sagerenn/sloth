@@ -14,7 +14,7 @@ use std::sync::Arc;
 
 use anyhow::{Context, Result, anyhow};
 use rmcp::model::{CallToolRequestParams, Tool as RmcpTool};
-use rmcp::service::{RunningService, RoleClient};
+use rmcp::service::{RoleClient, RunningService};
 use rmcp::transport::streamable_http_client::{
     StreamableHttpClientTransport, StreamableHttpClientTransportConfig,
 };
@@ -218,9 +218,7 @@ async fn connect_rmcp(cfg: &McpServerConfig) -> Result<RunningService<RoleClient
 }
 
 /// List tools via the rmcp client.
-async fn list_tools(
-    client: &RunningService<RoleClient, ()>,
-) -> Result<Vec<McpTool>> {
+async fn list_tools(client: &RunningService<RoleClient, ()>) -> Result<Vec<McpTool>> {
     let peer = client.peer();
     let tools = peer
         .list_all_tools()

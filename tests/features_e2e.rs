@@ -22,7 +22,7 @@ use sloth_agent::config::HitlConfig;
 use sloth_agent::cron::Cron;
 use sloth_agent::hitl::HitlBroker;
 use sloth_agent::mcp::McpRegistry;
-use sloth_agent::scheduler::{Scheduler, ScheduledJob};
+use sloth_agent::scheduler::{ScheduledJob, Scheduler};
 use sloth_agent::session::SessionManager;
 use sloth_agent::tools::ToolRouter;
 
@@ -32,7 +32,10 @@ async fn endpoint_reachable() -> bool {
     let base = std::env::var("SLOTH_LLM_BASE_URL")
         .unwrap_or_else(|_| "http://172.17.0.1:8317/v1".to_string());
     let url = format!("{}/models", base.trim_end_matches('/'));
-    let client = match reqwest::Client::builder().timeout(Duration::from_secs(5)).build() {
+    let client = match reqwest::Client::builder()
+        .timeout(Duration::from_secs(5))
+        .build()
+    {
         Ok(c) => c,
         Err(_) => return false,
     };
@@ -164,11 +167,8 @@ async fn hitl_gate_blocks_until_approved_then_runs() {
         "prompt": "good morning"
     });
     let router_c = router.clone();
-    let task = tokio::spawn(async move {
-        router_c
-            .execute("scheduler_add_job", &args, "alice")
-            .await
-    });
+    let task =
+        tokio::spawn(async move { router_c.execute("scheduler_add_job", &args, "alice").await });
 
     // Receive the pending confirmation and approve it.
     let pending = tokio::time::timeout(Duration::from_secs(2), pending_rx.recv())
@@ -219,9 +219,8 @@ async fn hitl_deny_blocks_tool() {
     let mut pending_rx = broker.pending_channel_async().await;
     let args = json!({ "name": "x", "cron": "* * * * *", "prompt": "p" });
     let router_c = router.clone();
-    let task = tokio::spawn(async move {
-        router_c.execute("scheduler_add_job", &args, "alice").await
-    });
+    let task =
+        tokio::spawn(async move { router_c.execute("scheduler_add_job", &args, "alice").await });
     let pending = pending_rx.recv().await.expect("no pending");
     broker.resolve(&pending.id, Outcome::Denied).await;
     let outcome = task.await.unwrap();
@@ -522,7 +521,9 @@ async fn llm_function_call_lists_scheduled_jobs() {
         base_url: std::env::var("SLOTH_LLM_BASE_URL")
             .unwrap_or_else(|_| "http://172.17.0.1:8317/v1".to_string()),
         model: std::env::var("SLOTH_LLM_MODEL").unwrap_or_else(|_| "glm-5.2".to_string()),
-        api_key: std::env::var("SLOTH_LLM_API_KEY").ok().filter(|s| !s.is_empty()),
+        api_key: std::env::var("SLOTH_LLM_API_KEY")
+            .ok()
+            .filter(|s| !s.is_empty()),
         system_prompt: "You are a test assistant. Use provided tools when asked.".to_string(),
         temperature: Some(0.0),
         max_tokens: Some(512),
@@ -585,13 +586,12 @@ async fn llm_function_call_lists_scheduled_jobs() {
     assert_eq!(scheduler.list().len(), 1);
 }
 
-
 // ──────────────────────────── HITL reply parser ────────────────────────────
 
 #[test]
 fn parse_hitl_reply_maps_yes_and_no() {
-    use sloth_agent::runtime::parse_hitl_reply;
     use sloth_agent::hitl::Outcome;
+    use sloth_agent::runtime::parse_hitl_reply;
     assert_eq!(parse_hitl_reply("yes"), Outcome::Approved);
     assert_eq!(parse_hitl_reply("Y"), Outcome::Approved);
     assert_eq!(parse_hitl_reply("approve"), Outcome::Approved);
@@ -628,7 +628,10 @@ async fn skills_load_parse_and_invoke_through_router() {
     assert_eq!(skills[0].arguments.len(), 1);
 
     // Invoke substitutes placeholders.
-    let out = reg.invoke("greet", &json!({ "who": "world" })).await.unwrap();
+    let out = reg
+        .invoke("greet", &json!({ "who": "world" }))
+        .await
+        .unwrap();
     assert_eq!(out, "Hello, world!\n");
 
     // Hot reload picks up an added file.
@@ -972,7 +975,10 @@ async fn make_router_with_catalog(
         Arc::new(sloth_agent::a2a::A2aRegistry::new()),
         Arc::new(cat),
         memory,
-        Arc::new(HitlBroker::new(HitlConfig { enabled: false, ..Default::default() })),
+        Arc::new(HitlBroker::new(HitlConfig {
+            enabled: false,
+            ..Default::default()
+        })),
         vec![],
         vec![],
         true,
@@ -1008,7 +1014,11 @@ async fn memory_set_recall_persists_through_router() {
 
     // Recall it back.
     let rec = router
-        .execute("memory_recall", &json!({ "key": "preferred_language" }), "alice")
+        .execute(
+            "memory_recall",
+            &json!({ "key": "preferred_language" }),
+            "alice",
+        )
         .await;
     assert!(!rec.is_error, "{}", rec.content);
     let v: Value = serde_json::from_str(&rec.content).unwrap();
@@ -1098,7 +1108,7 @@ async fn compact_should_compact_threshold_logic() {
 #[ignore = "requires live LLM gateway"]
 async fn runtime_auto_picks_model_from_catalog() {
     use sloth_agent::config::{
-        A2aConfig, BridgeConfig, CompactConfig, Config, HitlConfig, HistoryConfig, LlmConfig,
+        A2aConfig, BridgeConfig, CompactConfig, Config, HistoryConfig, HitlConfig, LlmConfig,
         McpConfig, MemoryConfig, ModelCatalogConfig, ObservabilityConfig, SchedulerConfig,
         SessionConfig, SkillsConfig,
     };
@@ -1143,9 +1153,15 @@ async fn runtime_auto_picks_model_from_catalog() {
             service_name: "sloth-test".into(),
         },
         mcp: McpConfig::default(),
-        scheduler: SchedulerConfig { enabled: false, ..Default::default() },
+        scheduler: SchedulerConfig {
+            enabled: false,
+            ..Default::default()
+        },
         sessions: SessionConfig::default(),
-        hitl: HitlConfig { enabled: false, ..Default::default() },
+        hitl: HitlConfig {
+            enabled: false,
+            ..Default::default()
+        },
         skills: SkillsConfig::default(),
         a2a: A2aConfig::default(),
         models: ModelCatalogConfig {
@@ -1157,8 +1173,13 @@ async fn runtime_auto_picks_model_from_catalog() {
         memory: MemoryConfig::default(),
     };
 
-    let ctx = sloth_agent::runtime::AgentContext::build(&cfg).await.unwrap();
-    assert_ne!(ctx.model, "WRONG-FALLBACK", "catalog should override llm.model");
+    let ctx = sloth_agent::runtime::AgentContext::build(&cfg)
+        .await
+        .unwrap();
+    assert_ne!(
+        ctx.model, "WRONG-FALLBACK",
+        "catalog should override llm.model"
+    );
     std::fs::remove_dir_all(&dir).ok();
 }
 
@@ -1179,7 +1200,9 @@ async fn live_auto_compact_summarizes_history() {
         base_url: std::env::var("SLOTH_LLM_BASE_URL")
             .unwrap_or_else(|_| "http://172.17.0.1:8317/v1".into()),
         model: std::env::var("SLOTH_LLM_MODEL").unwrap_or_else(|_| "glm-5.2".into()),
-        api_key: std::env::var("SLOTH_LLM_API_KEY").ok().filter(|s| !s.is_empty()),
+        api_key: std::env::var("SLOTH_LLM_API_KEY")
+            .ok()
+            .filter(|s| !s.is_empty()),
         system_prompt: "test".into(),
         temperature: Some(0.0),
         max_tokens: Some(64),
@@ -1231,7 +1254,9 @@ async fn live_memory_injected_into_prompt_recalled() {
         base_url: std::env::var("SLOTH_LLM_BASE_URL")
             .unwrap_or_else(|_| "http://172.17.0.1:8317/v1".into()),
         model: std::env::var("SLOTH_LLM_MODEL").unwrap_or_else(|_| "glm-5.2".into()),
-        api_key: std::env::var("SLOTH_LLM_API_KEY").ok().filter(|s| !s.is_empty()),
+        api_key: std::env::var("SLOTH_LLM_API_KEY")
+            .ok()
+            .filter(|s| !s.is_empty()),
         system_prompt: "You are a test assistant.".into(),
         temperature: Some(0.0),
         max_tokens: Some(64),
@@ -1241,7 +1266,8 @@ async fn live_memory_injected_into_prompt_recalled() {
     mem.set_dir(&dir).await;
     mem.set("zed", "favorite_color", "cobalt").await.unwrap();
 
-    let agent = ChatAgent::with_compactor_and_memory(&llm, 5, None, Some(mem.clone()), true).unwrap();
+    let agent =
+        ChatAgent::with_compactor_and_memory(&llm, 5, None, Some(mem.clone()), true).unwrap();
     // The prompt snippet for "zed" should now include the fact.
     let prompt = agent.system_prompt_for_pub("zed").await.unwrap();
     assert!(prompt.contains("cobalt"));

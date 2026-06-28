@@ -224,12 +224,20 @@ impl Catalog {
             Strategy::BestScore => candidates
                 .iter()
                 .copied()
-                .max_by(|a, b| a.score().partial_cmp(&b.score()).unwrap_or(std::cmp::Ordering::Equal))
+                .max_by(|a, b| {
+                    a.score()
+                        .partial_cmp(&b.score())
+                        .unwrap_or(std::cmp::Ordering::Equal)
+                })
                 .unwrap(),
             Strategy::BestScoreUnderBudget => candidates
                 .iter()
                 .copied()
-                .max_by(|a, b| a.score().partial_cmp(&b.score()).unwrap_or(std::cmp::Ordering::Equal))
+                .max_by(|a, b| {
+                    a.score()
+                        .partial_cmp(&b.score())
+                        .unwrap_or(std::cmp::Ordering::Equal)
+                })
                 .unwrap(),
             Strategy::CheapestAboveFloor => candidates
                 .iter()
@@ -272,7 +280,11 @@ pub fn explain_pick(picked: Option<&ModelInfo>, all: &[ModelInfo], opts: &PickOp
             opts.strategy,
             all.len(),
         ),
-        None => format!("no model satisfied {:?} among {} candidates", opts.strategy, all.len()),
+        None => format!(
+            "no model satisfied {:?} among {} candidates",
+            opts.strategy,
+            all.len()
+        ),
     }
 }
 

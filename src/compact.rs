@@ -133,7 +133,8 @@ impl Compactor {
         if summary.is_empty() {
             return Ok(false);
         }
-        let summary_entry = Stored::Assistant(format!("[summary of earlier conversation]\n{summary}"));
+        let summary_entry =
+            Stored::Assistant(format!("[summary of earlier conversation]\n{summary}"));
         let tail: Vec<Stored> = messages
             .iter()
             .skip(messages.len() - keep)

@@ -249,13 +249,14 @@ impl ChatAgent {
             steps += 1;
             if steps > max_steps {
                 tracing::warn!(steps, "tool loop hit max_steps; stopping");
-                final_text = "I reached the maximum number of tool steps; stopping here."
-                    .to_string();
+                final_text =
+                    "I reached the maximum number of tool steps; stopping here.".to_string();
                 break;
             }
 
             let mut args = CreateChatCompletionRequestArgs::default();
-            args.model(self.inner.model.clone()).messages(messages.clone());
+            args.model(self.inner.model.clone())
+                .messages(messages.clone());
             if !tools.is_empty() {
                 args.tools(tools.clone());
             }
@@ -330,7 +331,10 @@ impl ChatAgent {
             reply_chars = final_text.len(),
             steps,
             prompt_tokens = total_usage.as_ref().map(|u| u.prompt_tokens).unwrap_or(0),
-            completion_tokens = total_usage.as_ref().map(|u| u.completion_tokens).unwrap_or(0),
+            completion_tokens = total_usage
+                .as_ref()
+                .map(|u| u.completion_tokens)
+                .unwrap_or(0),
             total_tokens = total_usage.as_ref().map(|u| u.total_tokens).unwrap_or(0),
             "tool-augmented chat completion done"
         );

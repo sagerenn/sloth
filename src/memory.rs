@@ -121,11 +121,7 @@ impl MemoryStore {
         let mut m = self.load(sender).await?;
         m.facts.insert(key.to_string(), value.to_string());
         self.persist(sender, &m).await?;
-        self.inner
-            .cache
-            .lock()
-            .await
-            .insert(sender.to_string(), m);
+        self.inner.cache.lock().await.insert(sender.to_string(), m);
         info!(sender = %sender, key = %key, "memory fact set");
         Ok(())
     }
@@ -136,11 +132,7 @@ impl MemoryStore {
         let removed = m.facts.remove(key).is_some();
         if removed {
             self.persist(sender, &m).await?;
-            self.inner
-                .cache
-                .lock()
-                .await
-                .insert(sender.to_string(), m);
+            self.inner.cache.lock().await.insert(sender.to_string(), m);
         }
         Ok(removed)
     }
@@ -171,7 +163,11 @@ fn sender_path(dir: &Path, sender: &str) -> PathBuf {
             }
         })
         .collect();
-    let safe = if safe.is_empty() { "anon".to_string() } else { safe };
+    let safe = if safe.is_empty() {
+        "anon".to_string()
+    } else {
+        safe
+    };
     dir.join(format!("{safe}.toml"))
 }
 
@@ -212,7 +208,9 @@ mod tests {
     fn sender_path_sanitizes() {
         let p = sender_path(Path::new("/tmp/mem"), "../etc/passwd");
         assert!(p.starts_with("/tmp/mem"));
-        assert!(p.to_string_lossy().contains("___etc_passwd") || p.to_string_lossy().contains("passwd"));
+        assert!(
+            p.to_string_lossy().contains("___etc_passwd") || p.to_string_lossy().contains("passwd")
+        );
     }
 
     fn uniq() -> String {

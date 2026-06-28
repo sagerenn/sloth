@@ -13,16 +13,16 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use anyhow::{Context, Result, anyhow};
+#[cfg(test)]
+use a2a::TaskState;
+use a2a::{AgentCard, SendMessageResponse, Task};
 use a2a_client::A2AClient;
 use a2a_client::A2AClientFactory;
 use a2a_client::auth::AuthInterceptor;
 use a2a_client::client::SendMessageExt;
 use a2a_client::middleware::CallInterceptor;
 use a2a_client::transport::Transport;
-use a2a::{AgentCard, SendMessageResponse, Task};
-#[cfg(test)]
-use a2a::TaskState;
+use anyhow::{Context, Result, anyhow};
 use serde::Serialize;
 use tokio::sync::Mutex;
 use tracing::{info, warn};
@@ -96,7 +96,12 @@ impl A2aRegistry {
         let client = connect_a2a(cfg).await?;
         info!(agent = %cfg.name, "A2A agent connected (a2a-rs)");
         let mut g = self.inner.lock().await;
-        g.agents.insert(cfg.name.clone(), AgentEntry { client: Arc::new(client) });
+        g.agents.insert(
+            cfg.name.clone(),
+            AgentEntry {
+                client: Arc::new(client),
+            },
+        );
         Ok(())
     }
 
@@ -162,7 +167,10 @@ impl A2aRegistry {
         match resp {
             SendMessageResponse::Task(t) => {
                 let state = format!("{:?}", t.status.state);
-                Ok(A2aResult { text: task_text(&t), state: Some(state) })
+                Ok(A2aResult {
+                    text: task_text(&t),
+                    state: Some(state),
+                })
             }
             SendMessageResponse::Message(m) => Ok(A2aResult {
                 text: m.text().unwrap_or("").to_string(),
@@ -227,10 +235,7 @@ async fn fetch_card(base_url: &str, token: Option<&str>) -> Result<AgentCard> {
     if !resp.status().is_success() {
         anyhow::bail!("agent card fetch returned HTTP {}", resp.status());
     }
-    let card: AgentCard = resp
-        .json()
-        .await
-        .context("parsing agent card JSON")?;
+    let card: AgentCard = resp.json().await.context("parsing agent card JSON")?;
     Ok(card)
 }
 

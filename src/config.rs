@@ -433,9 +433,10 @@ impl Config {
             self.scheduler.enabled = matches!(v.as_str(), "1" | "true" | "yes");
         }
         if let Ok(v) = std::env::var("SLOTH_SCHEDULER_TICK_SECS")
-            && let Ok(n) = v.parse() {
-                self.scheduler.tick_secs = n;
-            }
+            && let Ok(n) = v.parse()
+        {
+            self.scheduler.tick_secs = n;
+        }
         if let Ok(v) = std::env::var("SLOTH_SESSION_DEFAULT") {
             self.sessions.default_session = v;
         }
@@ -443,9 +444,10 @@ impl Config {
             self.hitl.enabled = matches!(v.as_str(), "1" | "true" | "yes");
         }
         if let Ok(v) = std::env::var("SLOTH_HITL_TIMEOUT_SECS")
-            && let Ok(n) = v.parse() {
-                self.hitl.timeout_secs = n;
-            }
+            && let Ok(n) = v.parse()
+        {
+            self.hitl.timeout_secs = n;
+        }
         if let Ok(v) = std::env::var("SLOTH_MCP_EXPOSE_TOOLS") {
             self.mcp.expose_tools = matches!(v.as_str(), "1" | "true" | "yes");
         }

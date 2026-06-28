@@ -95,10 +95,7 @@ impl Skill {
     pub fn instantiate(&self, args: &Value) -> String {
         let mut out = self.body.clone();
         for a in &self.arguments {
-            let val = args
-                .get(&a.name)
-                .and_then(|v| v.as_str())
-                .unwrap_or("");
+            let val = args.get(&a.name).and_then(|v| v.as_str()).unwrap_or("");
             let pat = format!("{{{{{}}}}}", a.name); // {{arg}}
             out = out.replace(&pat, val);
         }
