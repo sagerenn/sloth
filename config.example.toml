@@ -38,3 +38,47 @@ log_format = "text"
 # tracing filter directive.
 log_filter = "info,sloth_agent=debug"
 service_name = "sloth-agent"
+
+# ──────────────────────────── remote MCP (hot-reloaded) ────────────────────────────
+# [[mcp.servers]] declares a remote MCP server (Streamable HTTP transport).
+# The registry hot-reloads when this list changes: add/remove entries and the
+# agent reconnects without restarting.
+# [[mcp.servers]]
+# name = "weather"
+# url = "http://127.0.0.1:8080/mcp"
+# token = ""            # optional bearer token
+# timeout_secs = 10
+
+[mcp]
+# Expose each remote server's tools to the LLM as callable functions
+# (prefixed mcp_<server>__<tool>). Turn off to hide them from the model.
+expose_tools = true
+# Poll interval (s) for connectivity checks; 0 = reconnect only on change.
+poll_secs = 0
+
+# ──────────────────────────── time-based scheduler ────────────────────────────
+[scheduler]
+# Enable the cron-style scheduler. When on, scheduled jobs fire their prompts
+# into the named session at the cron tick.
+enabled = true
+# Tick resolution (s). Lower = more responsive, more CPU.
+tick_secs = 5
+# Session a scheduled prompt runs under when the job specifies none.
+default_session = "default"
+
+# ──────────────────────────── session management ────────────────────────────
+[sessions]
+# Directory for session state metadata.
+store_dir = "sessions"
+# Session id created on startup.
+default_session = "default"
+
+# ──────────────────────────── Human-in-the-Loop ────────────────────────────
+[hitl]
+# Require human approval before running gated tools (scheduler_*, mcp_*).
+enabled = true
+# Auto-reject after this many seconds with no human decision.
+timeout_secs = 120
+# Glob patterns of tool names requiring confirmation. Empty list = confirm all
+# gated tools. Examples: ["scheduler_*", "mcp_*"]
+confirm_tools = []

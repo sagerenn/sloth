@@ -57,7 +57,11 @@ use anyhow::{Context, Result, anyhow, bail};
 use base64::Engine as _;
 use futures_util::{SinkExt, StreamExt};
 use serde_json::{Value, json};
-use sloth_agent::config::{BridgeConfig, Config, HistoryConfig, LlmConfig, ObservabilityConfig};
+use sloth_agent::config::{
+    A2aConfig, BridgeConfig, CompactConfig, Config, HitlConfig, HistoryConfig, LlmConfig, McpConfig,
+    MemoryConfig, ModelCatalogConfig, ObservabilityConfig, SchedulerConfig, SessionConfig,
+    SkillsConfig,
+};
 use tokio::sync::{Mutex, oneshot};
 use tokio_tungstenite::tungstenite::Message;
 
@@ -754,6 +758,15 @@ fn sloth_config(bridge_ws_url: String) -> Config {
             log_filter: "info,sloth_agent=debug".to_string(),
             service_name: "sloth-e2e-mattermost".to_string(),
         },
+        mcp: McpConfig::default(),
+        scheduler: SchedulerConfig::default(),
+        sessions: SessionConfig::default(),
+        hitl: HitlConfig::default(),
+        skills: SkillsConfig::default(),
+        a2a: A2aConfig::default(),
+        models: ModelCatalogConfig::default(),
+        compact: CompactConfig::default(),
+        memory: MemoryConfig::default(),
     }
 }
 

@@ -16,7 +16,11 @@ use std::time::Duration;
 
 use futures_util::{SinkExt, StreamExt};
 use serde_json::{Value, json};
-use sloth_agent::config::{BridgeConfig, Config, HistoryConfig, LlmConfig, ObservabilityConfig};
+use sloth_agent::config::{
+    A2aConfig, BridgeConfig, CompactConfig, Config, HitlConfig, HistoryConfig, LlmConfig, McpConfig,
+    MemoryConfig, ModelCatalogConfig, ObservabilityConfig, SchedulerConfig, SessionConfig,
+    SkillsConfig,
+};
 use tokio::net::TcpListener;
 use tokio::sync::oneshot;
 use tokio_tungstenite::tungstenite::Message;
@@ -69,6 +73,15 @@ fn test_config(ws_url: String) -> Config {
             log_filter: "info,sloth_agent=debug".to_string(),
             service_name: "sloth-agent-test".to_string(),
         },
+        mcp: McpConfig::default(),
+        scheduler: SchedulerConfig::default(),
+        sessions: SessionConfig::default(),
+        hitl: HitlConfig::default(),
+        skills: SkillsConfig::default(),
+        a2a: A2aConfig::default(),
+        models: ModelCatalogConfig::default(),
+        compact: CompactConfig::default(),
+        memory: MemoryConfig::default(),
     }
 }
 

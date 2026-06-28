@@ -1,0 +1,36 @@
+[workspace]
+
+[package]
+name = "itk-rust-current-agent"
+version = "0.1.0"
+edition = "2024"
+publish = false
+rust-version = "1.85.0"
+
+[[bin]]
+name = "itk-rust-current-agent"
+path = "a2a-itk/agents/rust/v10/src/main.rs"
+
+[dependencies]
+a2a        = { package = "a2a-lf",        path = "../a2a" }
+a2a-server = { package = "a2a-server-lf", path = "../a2a-server", default-features = false }
+a2a-client = { package = "a2a-client-lf", path = "../a2a-client", default-features = false }
+a2a-grpc   = { package = "a2a-grpc",      path = "../a2a-grpc",   default-features = false }
+a2a-pb     = { package = "a2a-pb",        path = "../a2a-pb" }
+
+async-trait        = "0.1"
+async-stream       = "0.3"
+axum               = "0.8"
+base64             = "0.22"
+futures            = "0.3"
+prost              = "0.13"
+serde_json         = "1"
+tokio              = { version = "1", features = ["macros", "net", "rt-multi-thread", "signal", "time"] }
+tokio-stream       = { version = "0.1", features = ["net"] }
+tonic              = "0.14"
+tower-http         = { version = "0.6", features = ["normalize-path"] }
+tracing            = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+[build-dependencies]
+prost-build = "0.13"

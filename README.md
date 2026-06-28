@@ -49,6 +49,38 @@ and rejects unknown bearer tokens. `async-openai` always sends an
 empty bearer (`Bearer `), which the gateway accepts. Leave `api_key` unset
 unless your gateway actually validates one.
 
+## Tools & agent features
+
+Beyond the base inbound→LLM→reply loop, the agent exposes five capability
+areas to the model via OpenAI-compatible function calling (structured
+`tool_call` objects dispatched deterministically, not free text):
+
+1. **Remote MCP with hot reload** — `[[mcp.servers]]` entries are connected
+   over the Streamable HTTP transport; each server's tools are surfaced to the
+   LLM prefixed `mcp_<server>__<tool>`. The registry hot-reloads: add or
+   remove a server and the agent reconnects without restarting. The LLM can
+   also drive a reload at runtime via `mcp_reload` and inspect servers via
+   `mcp_list_servers`.
+2. **Time-based scheduler (cron)** — `scheduler_add_job` / `scheduler_remove_job` /
+   `scheduler_list_jobs` let the LLM set up 5-field UNIX-cron jobs (UTC). A
+   background ticker fires due jobs and injects their prompts into the named
+   session, producing a reply on the channel.
+3. **Session management** — `session_switch` / `session_set_workspace` /
+   `session_list` manage named conversation contexts with per-session working
+   directories. Each sender has an active session; history is keyed by session.
+4. **Human-in-the-Loop** — gated tools (configurable via `[hitl].confirm_tools`
+   glob patterns) require human approval before executing. The runtime asks
+   the user over the bridge (`yes`/`no`) and auto-denies on timeout
+   (fail-closed).
+5. **Function calling / structured output** — the agent runs an agentic
+   tool-call loop (configurable step cap): it sends tool definitions, executes
+   any returned `tool_calls` through the router (with HITL gating), feeds
+   results back, and re-queries until the model produces a final text reply.
+
+See `config.example.toml` for the `[mcp]`, `[scheduler]`, `[sessions]`, and
+`[hitl]` sections, and the `SLOTH_SCHEDULER_*`, `SLOTH_HITL_*`,
+`SLOTH_MCP_EXPOSE_TOOLS`, and `SLOTH_SESSION_DEFAULT` env overrides.
+
 ## Run
 
 ```bash
@@ -100,12 +132,21 @@ Overrides (env vars): `SLOTH_LLM_BASE_URL` / `SLOTH_LLM_MODEL` / `SLOTH_LLM_API_
 src/
   config.rs      config.toml + SLOTH_* env overrides
   bridge.rs      typed OpenClaw WS envelope protocol (camelCase on the wire)
-  agent.rs       async-openai chat completions + per-sender history
-  runtime.rs     connect / subscribe / heartbeat / reconnect loop
+  cron.rs        5-field UNIX-cron parser (UTC, self-contained)
+  scheduler.rs   in-process cron engine: add/remove/list + fire events
+  session.rs     session manager: create/switch/workspace/list/delete
+  mcp.rs         remote MCP client (Streamable HTTP) + hot-reload registry
+  hitl.rs        Human-in-the-Loop confirmation broker + timeout
+  tools.rs       function-call tool router (scheduler + mcp + session tools)
+  agent.rs       async-openai chat completions + tool-calling loop + history
+  runtime.rs     connect / subscribe / heartbeat / reconnect + tool wiring
   main.rs        thin binary: init tracing, drive runtime, signal handling
 tests/
   agent_live.rs       live ChatAgent tests against the gateway
   bridge_e2e.rs       live end-to-end round trip through a mock bridge
+  features_e2e.rs     unit + e2e for cron, scheduler, sessions, HITL, remote MCP
+                       (mock MCP server, hot reload, router) + a live LLM
+                       function-calling test (#[ignore]d)
   mattermost_e2e.rs   live round trip through a real Mattermost server + bridge image
 ```
 

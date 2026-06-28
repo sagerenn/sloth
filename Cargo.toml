@@ -14,12 +14,18 @@ reqwest = { version = "0.13", default-features = false, features = ["json", "rus
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 toml = "1"
+serde_yaml = "0.9"
 anyhow = "1"
 thiserror = "2"
 uuid = { version = "1", features = ["v4"] }
 dashmap = "6"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "json", "fmt"] }
+rmcp = { version = "1.8", default-features = false, features = ["client", "transport-streamable-http-client-reqwest", "reqwest"] }
+# Official A2A Rust SDK (a2aproject/a2a-rs), vendored under vendor/a2a-rs.
+# We use the client crate (a2a-client-lf) for Agent Card discovery + tasks/*.
+a2a-client = { package = "a2a-client-lf", path = "vendor/a2a-rs/a2a-client" }
+a2a = { package = "a2a-lf", path = "vendor/a2a-rs/a2a" }
 url = "2"
 
 [dev-dependencies]

@@ -1,0 +1,74 @@
+# Sloth agent configuration for the local OpenClaw bridge.
+# Bridge config lives in /root/openclaw-bridge/config.json (host 0.0.0.0:9500, path /bridge,
+# telegram channel with the `default` account).
+
+[bridge]
+url = "ws://127.0.0.1:9500/bridge"
+channel = "telegram"
+account_id = "default"
+reconnect_ms = 1000
+reconnect_max_ms = 30000
+heartbeat_ms = 25000
+
+[llm]
+base_url = "http://172.17.0.1:8317/v1"
+model = "glm-5.2"
+# No api_key: the local gateway needs none and rejects unknown bearer tokens.
+system_prompt = "You are Sloth, a friendly, concise AI assistant replying over a Telegram chat bridge. Keep replies short and natural."
+temperature = 0.7
+max_tokens = 1024
+timeout_secs = 60
+
+[history]
+max_messages = 20
+
+[observability]
+log_format = "pretty"
+log_filter = "info,sloth_agent=debug"
+service_name = "sloth-agent"
+
+# ── Skills (markdown skill files with frontmatter, hot-reloaded) ──
+# Each .md file in `dir` is parsed for YAML-like frontmatter (name, description,
+# arguments) + a body template with {{arg}} placeholders. Skills are exposed to
+# the LLM as `skill_<name>` tools.
+# [skills]
+# dir = "skills"
+# poll_secs = 5
+# expose_tools = true
+
+# ── A2A (Agent2Agent) remote agents, via the official a2a-rs SDK ──
+# Each agent's card is fetched from {url}/.well-known/agent-card.json and a
+# transport negotiated automatically. Agents are exposed as `a2a_<name>` tools.
+# [a2a]
+# expose_tools = true
+# agents = [
+#   { name = "translator", url = "http://127.0.0.1:9001", timeout_secs = 30 },
+# ]
+
+# ── Model catalog (auto model selection by cost/capacity/benchmarks) ──
+# YAML files under `dir` describe models; the agent picks one automatically
+# instead of using the fixed llm.model. Hot-reloaded every poll_secs.
+# [models]
+# dir = "models"
+# poll_secs = 60
+# strategy = "best_score"            # | best_score_under_budget | cheapest_above_floor | best_value
+# min_score = 0.0
+# max_cost_per_token = 0.0           # 0 = no cap
+# min_context_window = 0             # 0 = no requirement
+# expose_tools = true
+
+# ── Auto-compact ──
+# When a sender's history crosses threshold_messages stored messages, the older
+# turns are summarized into a single summary, keeping keep_recent verbatim.
+# [compact]
+# enabled = true
+# threshold_messages = 20
+# keep_recent = 6
+
+# ── Persistent memory ──
+# Per-sender facts persisted under dir (one TOML per sender), injected into the
+# system prompt and writable via memory_set / memory_recall tools.
+# [memory]
+# dir = "memories"
+# inject_into_prompt = true
+# expose_tools = true

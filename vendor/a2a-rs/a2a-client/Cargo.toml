@@ -1,0 +1,54 @@
+# Copyright AGNTCY Contributors (https://github.com/agntcy)
+# SPDX-License-Identifier: Apache-2.0
+
+[package]
+name = "a2a-client-lf"
+version = "0.2.0"
+description = "A2A v1 async client with protocol binding factory"
+readme = "README.md"
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[lib]
+name = "a2a_client"
+
+[dependencies]
+a2a = { workspace = true }
+a2a-pb = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tokio = { workspace = true }
+tokio-stream = { workspace = true }
+futures = { workspace = true }
+async-trait = { workspace = true }
+auto_impl = { workspace = true }
+reqwest = { workspace = true }
+bytes = "1"
+tracing = { workspace = true }
+uuid = { workspace = true }
+semver = { workspace = true }
+pin-project-lite = { workspace = true }
+rustls = { workspace = true, optional = true }
+
+[dev-dependencies]
+rcgen = { workspace = true }
+
+[features]
+# By default we will use aws-lc-rs as crypto provider.
+default = ["rustls-tls"]
+
+rustls-tls = [
+    "reqwest/rustls",
+    "dep:rustls",
+]
+
+rustls-no-provider = [
+    "reqwest/rustls-no-provider",
+    "dep:rustls",
+]
+
+native-tls = [
+    "reqwest/native-tls"
+]

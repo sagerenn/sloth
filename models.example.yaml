@@ -1,0 +1,46 @@
+# Example model catalog. Files under the configured `models.dir` (each .yaml/
+# .yml) are merged; each is either a single model map or a `models:` list.
+#
+# Pricing is per 1,000,000 tokens (USD). `scores` is free-form; the special
+# `average` key (if present) is the default ranking score, otherwise the mean
+# of all listed scores is used. `context_window` and `max_output` are tokens.
+#
+# Selection strategy is set in config.toml [models] (best_score |
+# best_score_under_budget | cheapest_above_floor | best_value).
+
+models:
+  - id: glm-4.6
+    provider: zhipu
+    context_window: 128000
+    max_output: 8192
+    pricing:
+      prompt_per_1m: 0.5
+      completion_per_1m: 1.5
+    scores:
+      mmlu: 86.5
+      human_eval: 82.0
+      average: 84.2
+
+  - id: glm-5.2
+    provider: zhipu
+    context_window: 128000
+    max_output: 8192
+    pricing:
+      prompt_per_1m: 2.0
+      completion_per_1m: 8.0
+    scores:
+      mmlu: 90.1
+      human_eval: 88.5
+      average: 89.3
+
+  - id: qwen3-coder-small
+    provider: alibaba
+    context_window: 64000
+    max_output: 8192
+    pricing:
+      prompt_per_1m: 0.3
+      completion_per_1m: 0.6
+    scores:
+      mmlu: 78.0
+      human_eval: 79.5
+      average: 78.7

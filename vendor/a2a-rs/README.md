@@ -1,0 +1,170 @@
+# A2A Rust SDK
+
+[![CI](https://github.com/a2aproject/a2a-rs/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/a2aproject/a2a-rs/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/a2aproject/a2a-rs/branch/main/graph/badge.svg)](https://codecov.io/gh/a2aproject/a2a-rs)
+[![crates.io](https://img.shields.io/crates/v/a2a-lf.svg)](https://crates.io/crates/a2a-lf)
+[![docs.rs](https://docs.rs/a2a-lf/badge.svg)](https://docs.rs/a2a-lf)
+[![License](https://img.shields.io/crates/l/a2a-lf.svg)](https://github.com/a2aproject/a2a-rs/blob/main/LICENSE.md)
+
+`a2a-rs` is a Rust workspace for the A2A v1 protocol. It includes core protocol
+types, async client and server libraries, protobuf definitions, and gRPC
+bindings for building interoperable A2A agents and clients.
+
+The workspace supports:
+
+- JSON-RPC 2.0 over HTTP
+- REST / HTTP+JSON
+- gRPC via `tonic`
+- SLIMRPC via `slim_bindings`
+- Server-Sent Events for streaming responses
+- Protobuf-based interop with other SDKs and runtimes
+
+## Workspace
+
+| Crate | Purpose |
+| --- | --- |
+| `a2a` | Core A2A types, errors, events, JSON-RPC types, and wire-compatible serde behavior |
+| `a2a-client` | Async A2A client with transport abstraction and protocol negotiation from agent cards |
+| `a2a-server` | Async server framework with REST and JSON-RPC bindings built on `axum` |
+| `a2a-pb` | Protobuf schema, generated types, ProtoJSON-capable generated types, and native <-> protobuf conversion helpers |
+| `a2a-grpc` | gRPC client and server bindings built on `tonic` |
+| `a2a-slimrpc` | SLIMRPC client and server bindings built on `slim_bindings` |
+| `a2acli` | Standalone A2A client CLI, published as `a2a-cli`, for inspecting agent cards, sending messages, managing tasks, and handling push configs |
+| `examples/helloworld` | Minimal runnable example agent |
+
+## Supported Bindings
+
+| Binding | Client | Server |
+| --- | --- | --- |
+| JSON-RPC | `a2a-client` | `a2a-server` |
+| HTTP+JSON / REST | `a2a-client` | `a2a-server` |
+| gRPC | `a2a-grpc` | `a2a-grpc` |
+| SLIMRPC | `a2a-slimrpc` | `a2a-slimrpc` |
+
+The gRPC support uses the schema in `a2a-pb/proto/a2a.proto`. The REST and
+JSON-RPC bindings are intended to stay wire-compatible with other A2A SDKs,
+including Go and C# implementations.
+
+## Requirements
+
+- Rust 1.85 or newer
+- A stable `rustup` toolchain is recommended
+- `just` is optional but useful for common development commands
+- `cargo-llvm-cov` is optional if you want HTML coverage reports
+
+## Build And Test
+
+```sh
+cargo build --workspace
+cargo test --workspace
+```
+
+Common project commands are also available through `just`:
+
+```sh
+just build
+just test
+just lint
+just fmt-check
+just ci
+```
+
+## Coverage
+
+Install `cargo-llvm-cov` once:
+
+```sh
+cargo install cargo-llvm-cov
+```
+
+Then run:
+
+```sh
+just coverage
+```
+
+This writes the HTML report to `target/llvm-cov/html/index.html`.
+
+## Running The Example Agent
+
+The hello world example exposes an echo-style agent over REST and JSON-RPC.
+
+```sh
+cargo run -p helloworld
+```
+
+When the example starts, the following endpoints are available:
+
+- Agent card: `http://localhost:3000/.well-known/agent-card.json`
+- JSON-RPC endpoint: `http://localhost:3000/jsonrpc`
+- REST endpoint: `http://localhost:3000/rest`
+
+The example does not start a gRPC server, but the `a2a-grpc` crate provides the
+client and server bindings needed to add one.
+
+## Running The A2A CLI
+
+The workspace includes a standalone CLI client built on `a2a-client`. It
+resolves the public agent card from a base URL, negotiates JSON-RPC or
+HTTP+JSON, prints responses as JSON, and manages task push notification
+configs.
+
+```sh
+cargo run --bin a2acli -- card
+cargo run --bin a2acli -- send "hello from rust"
+cargo run --bin a2acli -- stream "hello from rust"
+cargo run --bin a2acli -- list-tasks
+cargo run --bin a2acli -- push-config list task-123
+```
+
+By default the CLI targets `http://localhost:3000`, which matches the bundled
+hello world server. Override the target with `--base-url https://host` for any
+compatible A2A server, use `--binding jsonrpc` or `--binding http-json` to pin
+transport selection, and pass `--bearer-token` or repeated `--header Name:Value`
+arguments when the server requires authentication.
+
+Install from the workspace with `cargo install --path a2acli`, or from crates.io
+after release with `cargo install a2a-cli`.
+
+## Depending On The Workspace
+
+Until the crates are published, depend on them directly from Git:
+
+```toml
+[dependencies]
+a2a = { package = "a2a-lf", git = "https://github.com/a2aproject/a2a-rs.git" }
+a2a-client = { package = "a2a-client-lf", git = "https://github.com/a2aproject/a2a-rs.git" }
+a2a-server = { package = "a2a-server-lf", git = "https://github.com/a2aproject/a2a-rs.git" }
+a2a-pb = { package = "a2a-pb", git = "https://github.com/a2aproject/a2a-rs.git" }
+a2a-grpc = { package = "a2a-grpc", git = "https://github.com/a2aproject/a2a-rs.git" }
+a2a-slimrpc = { package = "a2a-slimrpc", git = "https://github.com/a2aproject/a2a-rs.git" }
+```
+
+Typical usage is:
+
+- `a2a` for protocol types and serde models
+- `a2a-client` for clients that negotiate REST or JSON-RPC from an agent card
+- `a2a-server` for agent implementations on `axum`
+- `a2a-grpc` when you need gRPC transport support
+- `a2a-slimrpc` when you need SLIMRPC transport support
+- `a2a-pb` when you need direct access to protobuf messages or conversion helpers
+
+## Repository Layout
+
+- `a2a/`: core protocol crate
+- `a2a-client/`: client transports and factory
+- `a2a-server/`: request handler, routers, streaming, and stores
+- `a2a-pb/`: protobuf schema and conversion layer
+- `a2a-grpc/`: tonic-based bindings
+- `a2a-slimrpc/`: SLIMRPC bindings
+- `a2acli/`: standalone A2A client CLI and published binary package
+- `examples/helloworld/`: runnable sample agent
+
+## Contributing
+
+See `CONTRIBUTING.md` for contribution guidelines, `SECURITY.md` for security
+reporting, and `CODE_OF_CONDUCT.md` for community expectations.
+
+## License
+
+Apache-2.0. See `LICENSE.md`.

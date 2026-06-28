@@ -1,0 +1,61 @@
+name: CI
+
+on:
+  pull_request:
+    paths-ignore:
+      - 'itk/**'
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build-test:
+    name: Build and test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Setup Rust
+        uses: actions-rust-lang/setup-rust-toolchain@2b1f5e9b395427c92ee4e3331786ca3c37afe2d7 # v1.16.0
+        with:
+          components: clippy, rustfmt
+
+      - name: Install just
+        uses: taiki-e/install-action@80779d0b81222e7a5d0c5751d3c2537d4a36f556 # v2
+        with:
+          tool: just
+
+      - name: Check compilation
+        run: just check-compile
+
+      - name: Check formatting
+        if: runner.os == 'Linux'
+        run: just fmt-check
+
+      - name: Clippy lints
+        run: just lint
+
+      - name: Run tests
+        run: just test
+
+      - name: Check copyright headers
+        if: matrix.os != 'windows-latest'
+        shell: bash
+        run: |
+          missing=0
+          for f in $(find . -name '*.rs' -not -path '*/gen/*' -not -path '*/target/*'); do
+            if ! head -1 "$f" | grep -q '^// Copyright AGNTCY'; then
+              echo "Missing header: $f"
+              missing=$((missing + 1))
+            fi
+          done
+          if [ "$missing" -gt 0 ]; then
+            echo "ERROR: $missing file(s) missing copyright header"
+            exit 1
+          fi

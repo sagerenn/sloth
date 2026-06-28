@@ -1,0 +1,55 @@
+[package]
+name = "a2a-server-lf"
+version = "0.4.0"
+description = "A2A v1 async server framework"
+readme = "README.md"
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[lib]
+name = "a2a_server"
+
+[dependencies]
+a2a = { workspace = true }
+a2a-pb = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tokio = { workspace = true }
+tokio-stream = { workspace = true }
+futures = { workspace = true }
+async-trait = { workspace = true }
+axum = { workspace = true }
+tower = { workspace = true }
+tower-http = { workspace = true }
+hyper = { workspace = true }
+reqwest = { workspace = true }
+tracing = { workspace = true }
+uuid = { workspace = true }
+chrono = { workspace = true }
+axum-server = { workspace = true, default-features = false, optional = true }
+rustls = { workspace = true, optional = true }
+
+[features]
+default = ["rustls-tls"]
+
+native-tls = [
+    "reqwest/native-tls"
+]
+
+rustls-tls = [
+    "reqwest/rustls",
+    "dep:rustls",
+    "axum-server/tls-rustls"
+]
+
+rustls-no-provider = [
+    "reqwest/rustls-no-provider",
+    "dep:rustls",
+    "axum-server/tls-rustls-no-provider"
+]
+
+[dev-dependencies]
+http-body-util = "0.1"
+rustls = { workspace = true }

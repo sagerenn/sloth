@@ -21,6 +21,24 @@ pub struct Config {
     pub history: HistoryConfig,
     /// Observability / tracing settings.
     pub observability: ObservabilityConfig,
+    /// Remote MCP server registry (hot-reloaded from this list).
+    pub mcp: McpConfig,
+    /// Time-based scheduler (cron) settings.
+    pub scheduler: SchedulerConfig,
+    /// Session management settings.
+    pub sessions: SessionConfig,
+    /// Human-in-the-loop confirmation settings.
+    pub hitl: HitlConfig,
+    /// Skill system (markdown skill files, hot-reloaded).
+    pub skills: SkillsConfig,
+    /// A2A (Agent2Agent) remote agent registry.
+    pub a2a: A2aConfig,
+    /// Model catalog (auto model selection by cost/capacity/benchmarks).
+    pub models: ModelCatalogConfig,
+    /// Auto-compaction of conversation history.
+    pub compact: CompactConfig,
+    /// Persistent memory.
+    pub memory: MemoryConfig,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -124,6 +142,237 @@ impl Default for ObservabilityConfig {
     }
 }
 
+/// A single remote MCP server entry.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(default)]
+pub struct McpServerConfig {
+    /// Human-readable name; also used as the tool-name prefix.
+    pub name: String,
+    /// Streamable-HTTP endpoint URL, e.g. `http://127.0.0.1:8080/mcp`.
+    pub url: String,
+    /// Optional bearer token sent as `Authorization: Bearer {token}`.
+    pub token: Option<String>,
+    /// Connect timeout, seconds.
+    pub timeout_secs: u64,
+}
+
+/// Remote MCP registry config.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(default)]
+pub struct McpConfig {
+    /// Registered remote MCP servers.
+    pub servers: Vec<McpServerConfig>,
+    /// Reconnect poll interval, seconds (0 = reconnect only on change).
+    pub poll_secs: u64,
+    /// When true, the agent exposes remote MCP tools to the LLM as callable
+    /// functions (prefixed `mcp_<name>__`).
+    pub expose_tools: bool,
+}
+
+/// Scheduler (cron) config.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
+pub struct SchedulerConfig {
+    /// When true, the time-based scheduler is enabled and runs cron jobs.
+    pub enabled: bool,
+    /// Tick resolution, seconds. The scheduler wakes this often to check for
+    /// due jobs. Lower = more responsive, more CPU.
+    pub tick_secs: u64,
+    /// Default session id a scheduled job's prompt is dispatched into when the
+    /// job itself specifies none.
+    pub default_session: String,
+}
+
+impl Default for SchedulerConfig {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            tick_secs: 5,
+            default_session: "default".to_string(),
+        }
+    }
+}
+
+/// Session management config.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
+pub struct SessionConfig {
+    /// Directory sessions persist state under (workspace metadata, etc.).
+    pub store_dir: String,
+    /// Default session id created on startup.
+    pub default_session: String,
+}
+
+impl Default for SessionConfig {
+    fn default() -> Self {
+        Self {
+            store_dir: "sessions".to_string(),
+            default_session: "default".to_string(),
+        }
+    }
+}
+
+/// Human-in-the-loop config.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
+pub struct HitlConfig {
+    /// When true, gated tools (scheduler add/remove, mcp call) require human
+    /// approval before executing.
+    pub enabled: bool,
+    /// Seconds to wait for a human decision before auto-rejecting.
+    pub timeout_secs: u64,
+    /// Glob patterns of tool names that require confirmation (others run
+    /// automatically). Empty list = confirm all gated tools.
+    pub confirm_tools: Vec<String>,
+}
+
+impl Default for HitlConfig {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            timeout_secs: 120,
+            confirm_tools: Vec::new(),
+        }
+    }
+}
+
+/// Skill system config.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
+pub struct SkillsConfig {
+    /// Directory containing skill files (markdown with frontmatter). Skills
+    /// are hot-reloaded when files in this directory change.
+    pub dir: Option<String>,
+    /// Re-scan the skills directory this often (seconds). 0 = scan on demand
+    /// only (the runtime still triggers a rescan when files change).
+    pub poll_secs: u64,
+    /// When true, expose loaded skills to the LLM as invocable tools
+    /// (`skill_<name>`).
+    pub expose_tools: bool,
+}
+
+impl Default for SkillsConfig {
+    fn default() -> Self {
+        Self {
+            dir: None,
+            poll_secs: 5,
+            expose_tools: true,
+        }
+    }
+}
+
+/// A single remote A2A agent entry.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(default)]
+pub struct A2aAgentConfig {
+    /// Human-readable name; used as the tool-name prefix.
+    pub name: String,
+    /// Base URL of the remote A2A agent (Agent Card is fetched from
+    /// `{url}/.well-known/agent-card.json`).
+    pub url: String,
+    /// Optional bearer token.
+    pub token: Option<String>,
+    /// Connect timeout, seconds.
+    pub timeout_secs: u64,
+}
+
+/// A2A (Agent2Agent) registry config.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(default)]
+pub struct A2aConfig {
+    /// Registered remote A2A agents.
+    pub agents: Vec<A2aAgentConfig>,
+    /// When true, expose each remote agent to the LLM as a callable function
+    /// (`a2a_<name>`).
+    pub expose_tools: bool,
+}
+
+/// Model-catalog config (auto model selection).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
+pub struct ModelCatalogConfig {
+    /// Directory of YAML catalog files. When set, the agent picks a model
+    /// automatically instead of using the fixed `llm.model`.
+    pub dir: Option<String>,
+    /// Re-scan the catalog this often (seconds). 0 = scan on demand only.
+    pub poll_secs: u64,
+    /// Selection strategy: best_score | best_score_under_budget |
+    /// cheapest_above_floor | best_value.
+    pub strategy: String,
+    /// Minimum acceptable benchmark score. 0 = no floor.
+    pub min_score: f64,
+    /// Maximum blended cost-per-token (USD). None/0 = no cap.
+    pub max_cost_per_token: Option<f64>,
+    /// Minimum required context window (tokens). None/0 = no requirement.
+    pub min_context_window: Option<u32>,
+    /// When true, expose a `model_list` / `model_pick` tool to the LLM.
+    pub expose_tools: bool,
+}
+
+impl Default for ModelCatalogConfig {
+    fn default() -> Self {
+        Self {
+            dir: None,
+            poll_secs: 60,
+            strategy: "best_score".to_string(),
+            min_score: 0.0,
+            max_cost_per_token: None,
+            min_context_window: None,
+            expose_tools: true,
+        }
+    }
+}
+
+/// Auto-compaction config.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
+pub struct CompactConfig {
+    /// When true, conversation history is summarized once it exceeds the
+    /// threshold, replacing old turns with a compact summary.
+    pub enabled: bool,
+    /// Number of stored messages (turns × 2) that triggers compaction.
+    pub threshold_messages: usize,
+    /// Messages to retain verbatim after compaction (most recent).
+    pub keep_recent: usize,
+    /// System instruction appended to the compaction prompt.
+    pub prompt: String,
+}
+
+impl Default for CompactConfig {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            threshold_messages: 20,
+            keep_recent: 6,
+            prompt: "Summarize the preceding conversation in a concise paragraph, \
+                preserving facts, decisions, names, and any open tasks."
+                .to_string(),
+        }
+    }
+}
+
+/// Persistent memory config.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
+pub struct MemoryConfig {
+    /// Directory under which memory files are persisted (one per sender).
+    pub dir: Option<String>,
+    /// When true, inject recalled memory into the system prompt.
+    pub inject_into_prompt: bool,
+    /// When true, expose `memory_set` / `memory_recall` tools to the LLM.
+    pub expose_tools: bool,
+}
+
+impl Default for MemoryConfig {
+    fn default() -> Self {
+        Self {
+            dir: None,
+            inject_into_prompt: true,
+            expose_tools: true,
+        }
+    }
+}
+
 impl Config {
     /// Load config from `config.toml` (if present) with environment overrides.
     #[allow(dead_code)]
@@ -179,6 +428,26 @@ impl Config {
         }
         if let Ok(v) = std::env::var("SLOTH_LOG_FILTER") {
             self.observability.log_filter = v;
+        }
+        if let Ok(v) = std::env::var("SLOTH_SCHEDULER_ENABLED") {
+            self.scheduler.enabled = matches!(v.as_str(), "1" | "true" | "yes");
+        }
+        if let Ok(v) = std::env::var("SLOTH_SCHEDULER_TICK_SECS")
+            && let Ok(n) = v.parse() {
+                self.scheduler.tick_secs = n;
+            }
+        if let Ok(v) = std::env::var("SLOTH_SESSION_DEFAULT") {
+            self.sessions.default_session = v;
+        }
+        if let Ok(v) = std::env::var("SLOTH_HITL_ENABLED") {
+            self.hitl.enabled = matches!(v.as_str(), "1" | "true" | "yes");
+        }
+        if let Ok(v) = std::env::var("SLOTH_HITL_TIMEOUT_SECS")
+            && let Ok(n) = v.parse() {
+                self.hitl.timeout_secs = n;
+            }
+        if let Ok(v) = std::env::var("SLOTH_MCP_EXPOSE_TOOLS") {
+            self.mcp.expose_tools = matches!(v.as_str(), "1" | "true" | "yes");
         }
     }
 
