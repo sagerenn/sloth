@@ -19,6 +19,8 @@ WORKDIR /build
 COPY Cargo.toml Cargo.lock* ./
 COPY src ./src
 COPY examples ./examples
+# Vendored path dependencies (the A2A Rust SDK). Required before `cargo build`.
+COPY vendor ./vendor
 COPY config.example.toml ./
 
 # Build the release binary.
