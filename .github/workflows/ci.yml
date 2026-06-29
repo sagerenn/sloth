@@ -153,7 +153,10 @@ jobs:
         run: |
           mkdir -p /tmp/digests
           digest="${{ steps.build.outputs.digest }}"
-          touch "/tmp/digests/${digest#sha256:}"
+          # Write the hash as the file *content* (the manifest-assemble step
+          # reads it back with `cat`), not as the filename — an empty file
+          # would yield `@sha256:` and break `imagetools create`.
+          echo "${digest#sha256:}" > "/tmp/digests/${{ matrix.platform }}.digest"
 
       - name: Upload digest
         if: github.event_name != 'pull_request'
