@@ -1,0 +1,47 @@
+# Scraped from OpenRouter (most-popular). See scripts/scrape_openrouter_models.py
+models:
+- id: stepfun/step-3.7-flash
+  name: 'StepFun: Step 3.7 Flash'
+  provider: stepfun
+  context_window: 256000
+  max_output: 256000
+  modalities:
+    input:
+    - text
+    - image
+    - video
+    output:
+    - text
+    wire: text+image+video->text
+  pricing:
+    prompt_per_1m: 0.2
+    completion_per_1m: 1.15
+  scores:
+    elo:models:3d: 1196.0
+    win_rate:models:3d: 42.9
+    rank:models:3d: 47.0
+    elo:models:asciiart: 1227.0
+    win_rate:models:asciiart: 52.3
+    rank:models:asciiart: 13.0
+    elo:models:codecategories: 1217.0
+    win_rate:models:codecategories: 45.7
+    rank:models:codecategories: 45.0
+    elo:models:dataviz: 1214.0
+    win_rate:models:dataviz: 47.2
+    rank:models:dataviz: 41.0
+    elo:models:gamedev: 1209.0
+    win_rate:models:gamedev: 41.6
+    rank:models:gamedev: 43.0
+    elo:models:svg: 1122.0
+    win_rate:models:svg: 40.0
+    rank:models:svg: 48.0
+    elo:models:uicomponent: 1208.0
+    win_rate:models:uicomponent: 44.2
+    rank:models:uicomponent: 45.0
+    elo:models:website: 1226.0
+    win_rate:models:website: 47.3
+    rank:models:website: 43.0
+    intelligence_index: 29.7
+    coding_index: 37.3
+    agentic_index: 21.5
+    average: 1202.4

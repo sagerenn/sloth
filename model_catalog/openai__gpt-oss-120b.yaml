@@ -1,0 +1,39 @@
+# Scraped from OpenRouter (most-popular). See scripts/scrape_openrouter_models.py
+models:
+- id: openai/gpt-oss-120b
+  name: 'OpenAI: gpt-oss-120b'
+  provider: openai
+  context_window: 131072
+  max_output: 131072
+  modalities:
+    input:
+    - text
+    output:
+    - text
+    wire: text->text
+  pricing:
+    prompt_per_1m: 0.03
+    completion_per_1m: 0.15
+  scores:
+    elo:models:3d: 979.0
+    win_rate:models:3d: 29.4
+    rank:models:3d: 90.0
+    elo:models:codecategories: 1014.0
+    win_rate:models:codecategories: 33.4
+    rank:models:codecategories: 96.0
+    elo:models:dataviz: 1044.0
+    win_rate:models:dataviz: 45.1
+    rank:models:dataviz: 86.0
+    elo:models:gamedev: 1060.0
+    win_rate:models:gamedev: 40.6
+    rank:models:gamedev: 84.0
+    elo:models:uicomponent: 980.0
+    win_rate:models:uicomponent: 35.5
+    rank:models:uicomponent: 91.0
+    elo:models:website: 1012.0
+    win_rate:models:website: 32.5
+    rank:models:website: 99.0
+    intelligence_index: 23.8
+    coding_index: 30.4
+    agentic_index: 13.2
+    average: 1014.8

@@ -1,0 +1,43 @@
+# Scraped from OpenRouter (most-popular). See scripts/scrape_openrouter_models.py
+models:
+- id: google/gemini-2.5-flash
+  name: 'Google: Gemini 2.5 Flash'
+  provider: google
+  context_window: 1048576
+  max_output: 65535
+  modalities:
+    input:
+    - file
+    - image
+    - text
+    - audio
+    - video
+    output:
+    - text
+    wire: text+image+file+audio+video->text
+  pricing:
+    prompt_per_1m: 0.3
+    completion_per_1m: 2.5
+  scores:
+    elo:models:3d: 1150.0
+    win_rate:models:3d: 47.4
+    rank:models:3d: 64.0
+    elo:models:codecategories: 1155.0
+    win_rate:models:codecategories: 46.9
+    rank:models:codecategories: 69.0
+    elo:models:dataviz: 1171.0
+    win_rate:models:dataviz: 48.4
+    rank:models:dataviz: 58.0
+    elo:models:gamedev: 1133.0
+    win_rate:models:gamedev: 44.3
+    rank:models:gamedev: 72.0
+    elo:models:uicomponent: 1148.0
+    win_rate:models:uicomponent: 48.9
+    rank:models:uicomponent: 63.0
+    elo:models:website: 1159.0
+    win_rate:models:website: 47.1
+    rank:models:website: 68.0
+    elo:models:svg: 1078.0
+    win_rate:models:svg: 43.1
+    rank:models:svg: 57.0
+    average: 1142.0

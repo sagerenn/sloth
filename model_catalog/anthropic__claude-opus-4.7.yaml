@@ -1,0 +1,86 @@
+# Scraped from OpenRouter (most-popular). See scripts/scrape_openrouter_models.py
+models:
+- id: anthropic/claude-opus-4.7
+  name: 'Anthropic: Claude Opus 4.7'
+  provider: anthropic
+  context_window: 1000000
+  max_output: 128000
+  modalities:
+    input:
+    - text
+    - image
+    - file
+    output:
+    - text
+    wire: text+image+file->text
+  pricing:
+    prompt_per_1m: 5.0
+    completion_per_1m: 25.0
+  scores:
+    elo:agents:agenticgamedev: 1289.0
+    win_rate:agents:agenticgamedev: 64.2
+    rank:agents:agenticgamedev: 1.0
+    elo:agents:agentichtmlslides: 1243.0
+    win_rate:agents:agentichtmlslides: 58.0
+    rank:agents:agentichtmlslides: 3.0
+    elo:agents:agenticslides: 1334.0
+    win_rate:agents:agenticslides: 64.7
+    rank:agents:agenticslides: 1.0
+    elo:agents:agenticslides(html): 1242.0
+    win_rate:agents:agenticslides(html): 57.8
+    rank:agents:agenticslides(html): 3.0
+    elo:agents:agenticslides(python-pptx): 1335.0
+    win_rate:agents:agenticslides(python-pptx): 66.5
+    rank:agents:agenticslides(python-pptx): 1.0
+    elo:agents:androidnative: 1330.0
+    win_rate:agents:androidnative: 61.7
+    rank:agents:androidnative: 2.0
+    elo:agents:fullstack: 1503.0
+    win_rate:agents:fullstack: 80.1
+    rank:agents:fullstack: 1.0
+    elo:agents:godotgamedev: 1210.0
+    win_rate:agents:godotgamedev: 50.8
+    rank:agents:godotgamedev: 11.0
+    elo:agents:htmlslides: 1239.0
+    win_rate:agents:htmlslides: 57.5
+    rank:agents:htmlslides: 3.0
+    elo:agents:mobileapps: 1197.0
+    win_rate:agents:mobileapps: 50.9
+    rank:agents:mobileapps: 15.0
+    elo:agents:pptxslides: 1344.0
+    win_rate:agents:pptxslides: 67.3
+    rank:agents:pptxslides: 1.0
+    elo:agents:python-pptxslides: 1351.0
+    win_rate:agents:python-pptxslides: 66.3
+    rank:agents:python-pptxslides: 1.0
+    elo:agents:webapps: 1329.0
+    win_rate:agents:webapps: 65.5
+    rank:agents:webapps: 1.0
+    elo:models:3d: 1325.0
+    win_rate:models:3d: 60.7
+    rank:models:3d: 9.0
+    elo:models:asciiart: 1312.0
+    win_rate:models:asciiart: 64.6
+    rank:models:asciiart: 5.0
+    elo:models:codecategories: 1338.0
+    win_rate:models:codecategories: 61.2
+    rank:models:codecategories: 4.0
+    elo:models:dataviz: 1325.0
+    win_rate:models:dataviz: 61.9
+    rank:models:dataviz: 4.0
+    elo:models:gamedev: 1343.0
+    win_rate:models:gamedev: 62.9
+    rank:models:gamedev: 5.0
+    elo:models:svg: 1282.0
+    win_rate:models:svg: 61.7
+    rank:models:svg: 7.0
+    elo:models:uicomponent: 1363.0
+    win_rate:models:uicomponent: 64.5
+    rank:models:uicomponent: 2.0
+    elo:models:website: 1337.0
+    win_rate:models:website: 60.7
+    rank:models:website: 4.0
+    intelligence_index: 53.5
+    coding_index: 73.6
+    agentic_index: 44.4
+    average: 1312.9

@@ -1,0 +1,20 @@
+# Scraped from OpenRouter (most-popular). See scripts/scrape_openrouter_models.py
+models:
+- id: google/gemini-3.1-flash-lite
+  name: 'Google: Gemini 3.1 Flash Lite'
+  provider: google
+  context_window: 1048576
+  max_output: 65536
+  modalities:
+    input:
+    - text
+    - image
+    - video
+    - file
+    - audio
+    output:
+    - text
+    wire: text+image+file+audio+video->text
+  pricing:
+    prompt_per_1m: 0.25
+    completion_per_1m: 1.5

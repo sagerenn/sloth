@@ -1,0 +1,15 @@
+# Scraped from OpenRouter (most-popular). See scripts/scrape_openrouter_models.py
+models:
+- id: tencent/hy3-preview
+  name: 'Tencent: Hy3 preview'
+  provider: tencent
+  context_window: 262144
+  modalities:
+    input:
+    - text
+    output:
+    - text
+    wire: text->text
+  pricing:
+    prompt_per_1m: 0.063
+    completion_per_1m: 0.21

@@ -1,0 +1,57 @@
+# Scraped from OpenRouter (most-popular). See scripts/scrape_openrouter_models.py
+models:
+- id: z-ai/glm-5.2
+  name: 'Z.ai: GLM 5.2'
+  provider: z-ai
+  context_window: 1048576
+  max_output: 32768
+  modalities:
+    input:
+    - text
+    output:
+    - text
+    wire: text->text
+  pricing:
+    prompt_per_1m: 0.95
+    completion_per_1m: 3.0
+  scores:
+    elo:agents:androidnative: 1232.0
+    win_rate:agents:androidnative: 54.6
+    rank:agents:androidnative: 9.0
+    elo:agents:fullstack: 1295.0
+    win_rate:agents:fullstack: 63.8
+    rank:agents:fullstack: 3.0
+    elo:agents:htmlslides: 1207.0
+    win_rate:agents:htmlslides: 52.7
+    rank:agents:htmlslides: 8.0
+    elo:agents:mobileapps: 1242.0
+    win_rate:agents:mobileapps: 53.9
+    rank:agents:mobileapps: 5.0
+    elo:agents:python-pptxslides: 1223.0
+    win_rate:agents:python-pptxslides: 50.2
+    rank:agents:python-pptxslides: 5.0
+    elo:agents:webapps: 1283.0
+    win_rate:agents:webapps: 57.5
+    rank:agents:webapps: 3.0
+    elo:models:3d: 1371.0
+    win_rate:models:3d: 63.3
+    rank:models:3d: 1.0
+    elo:models:codecategories: 1361.0
+    win_rate:models:codecategories: 62.0
+    rank:models:codecategories: 1.0
+    elo:models:dataviz: 1334.0
+    win_rate:models:dataviz: 61.0
+    rank:models:dataviz: 3.0
+    elo:models:gamedev: 1359.0
+    win_rate:models:gamedev: 61.4
+    rank:models:gamedev: 2.0
+    elo:models:uicomponent: 1337.0
+    win_rate:models:uicomponent: 59.3
+    rank:models:uicomponent: 5.0
+    elo:models:website: 1358.0
+    win_rate:models:website: 61.7
+    rank:models:website: 1.0
+    intelligence_index: 51.1
+    coding_index: 68.8
+    agentic_index: 43.1
+    average: 1300.2

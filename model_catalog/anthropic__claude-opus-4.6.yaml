@@ -1,0 +1,56 @@
+# Scraped from OpenRouter (most-popular). See scripts/scrape_openrouter_models.py
+models:
+- id: anthropic/claude-opus-4.6
+  name: 'Anthropic: Claude Opus 4.6'
+  provider: anthropic
+  context_window: 1000000
+  max_output: 128000
+  modalities:
+    input:
+    - text
+    - image
+    - file
+    output:
+    - text
+    wire: text+image+file->text
+  pricing:
+    prompt_per_1m: 5.0
+    completion_per_1m: 25.0
+  scores:
+    elo:agents:androidnative: 1218.0
+    win_rate:agents:androidnative: 68.8
+    rank:agents:androidnative: 11.0
+    elo:agents:fullstack: 1288.0
+    win_rate:agents:fullstack: 68.6
+    rank:agents:fullstack: 4.0
+    elo:agents:mobileapps: 1260.0
+    win_rate:agents:mobileapps: 60.5
+    rank:agents:mobileapps: 3.0
+    elo:agents:webapps: 1266.0
+    win_rate:agents:webapps: 60.9
+    rank:agents:webapps: 4.0
+    elo:models:3d: 1354.0
+    win_rate:models:3d: 65.5
+    rank:models:3d: 4.0
+    elo:models:asciiart: 1305.0
+    win_rate:models:asciiart: 64.5
+    rank:models:asciiart: 6.0
+    elo:models:codecategories: 1343.0
+    win_rate:models:codecategories: 63.9
+    rank:models:codecategories: 3.0
+    elo:models:dataviz: 1321.0
+    win_rate:models:dataviz: 61.5
+    rank:models:dataviz: 5.0
+    elo:models:gamedev: 1344.0
+    win_rate:models:gamedev: 63.2
+    rank:models:gamedev: 4.0
+    elo:models:svg: 1287.0
+    win_rate:models:svg: 62.6
+    rank:models:svg: 4.0
+    elo:models:uicomponent: 1350.0
+    win_rate:models:uicomponent: 64.4
+    rank:models:uicomponent: 3.0
+    elo:models:website: 1339.0
+    win_rate:models:website: 63.4
+    rank:models:website: 3.0
+    average: 1306.2

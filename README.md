@@ -51,7 +51,7 @@ unless your gateway actually validates one.
 
 ## Tools & agent features
 
-Beyond the base inbound→LLM→reply loop, the agent exposes five capability
+Beyond the base inbound→LLM→reply loop, the agent exposes ten capability
 areas to the model via OpenAI-compatible function calling (structured
 `tool_call` objects dispatched deterministically, not free text):
 
@@ -61,10 +61,10 @@ areas to the model via OpenAI-compatible function calling (structured
    remove a server and the agent reconnects without restarting. The LLM can
    also drive a reload at runtime via `mcp_reload` and inspect servers via
    `mcp_list_servers`.
-2. **Time-based scheduler (cron)** — `scheduler_add_job` / `scheduler_remove_job` /
-   `scheduler_list_jobs` let the LLM set up 5-field UNIX-cron jobs (UTC). A
-   background ticker fires due jobs and injects their prompts into the named
-   session, producing a reply on the channel.
+2. **Time-based scheduler (cron)** — `scheduler_add_job` /
+   `scheduler_remove_job` / `scheduler_list_jobs` let the LLM set up 5-field
+   UNIX-cron jobs (UTC). A background ticker fires due jobs and injects their
+   prompts into the named session, producing a reply on the channel.
 3. **Session management** — `session_switch` / `session_set_workspace` /
    `session_list` manage named conversation contexts with per-session working
    directories. Each sender has an active session; history is keyed by session.
@@ -72,14 +72,43 @@ areas to the model via OpenAI-compatible function calling (structured
    glob patterns) require human approval before executing. The runtime asks
    the user over the bridge (`yes`/`no`) and auto-denies on timeout
    (fail-closed).
-5. **Function calling / structured output** — the agent runs an agentic
-   tool-call loop (configurable step cap): it sends tool definitions, executes
-   any returned `tool_calls` through the router (with HITL gating), feeds
-   results back, and re-queries until the model produces a final text reply.
+5. **Skills with hot reload** — `[skills]` points at a directory of markdown
+   skill files (YAML-like frontmatter `name`/`description`/`arguments` + a body
+   with `{{arg}}` placeholders). Each loaded skill is surfaced as an invocable
+   `skill_<name>` tool; `skill_list` / `skill_reload` let the LLM inspect and
+   refresh the registry. The directory is hot-reloaded on change.
+6. **A2A (Agent2Agent) remote agents** — `[[a2a.agents]]` entries are reached
+   via the official `a2a-rs` SDK: the Agent Card is fetched from
+   `{url}/.well-known/agent-card.json` and a transport negotiated
+   automatically. Each agent is surfaced as an `a2a_<name>` tool that sends a
+   prompt and returns the reply (plus task state). `a2a_list_agents` /
+   `a2a_reload` drive the registry at runtime.
+7. **Model catalog (auto model selection)** — `[models]` points at a directory
+   of YAML catalog files (see `models.example.yaml`); each lists a model's
+   pricing, context window, max output, and benchmark `scores`. The agent picks
+   a model automatically at startup instead of using the fixed `llm.model`.
+   Selection strategy: `best_score` (default) | `best_score_under_budget` |
+   `cheapest_above_floor` | `best_value`, with optional `min_score`,
+   `max_cost_per_token`, and `min_context_window` constraints. The LLM can
+   browse and re-pick via `model_list` / `model_pick`.
+8. **Auto-compaction of history** — when `[compact]` is on and a sender's
+   stored history crosses `threshold_messages`, the older turns are summarized
+   into a single compact summary, retaining the `keep_recent` most recent turns
+   verbatim. Keeps long-running sessions inside the model's context window.
+9. **Persistent memory** — `[memory]` stores per-sender facts (one file per
+   sender). Recalled facts are injected into the system prompt when
+   `inject_into_prompt` is on, and the LLM can read/write them via
+   `memory_set` / `memory_recall`.
+10. **Function calling / structured output** — the agent runs an agentic
+    tool-call loop (configurable step cap): it sends tool definitions, executes
+    any returned `tool_calls` through the router (with HITL gating), feeds
+    results back, and re-queries until the model produces a final text reply.
 
-See `config.example.toml` for the `[mcp]`, `[scheduler]`, `[sessions]`, and
-`[hitl]` sections, and the `SLOTH_SCHEDULER_*`, `SLOTH_HITL_*`,
-`SLOTH_MCP_EXPOSE_TOOLS`, and `SLOTH_SESSION_DEFAULT` env overrides.
+See `config.example.toml` for the `[mcp]`, `[scheduler]`, `[sessions]`,
+`[hitl]`, `[skills]`, `[a2a]`, `[models]`, `[compact]`, and `[memory]` sections,
+and the `SLOTH_SCHEDULER_*`, `SLOTH_HITL_*`, `SLOTH_MCP_EXPOSE_TOOLS`, and
+`SLOTH_SESSION_DEFAULT` env overrides. `models.example.yaml` shows the catalog
+file format.
 
 ## Run
 
@@ -130,22 +159,29 @@ Overrides (env vars): `SLOTH_LLM_BASE_URL` / `SLOTH_LLM_MODEL` / `SLOTH_LLM_API_
 
 ```
 src/
-  config.rs      config.toml + SLOTH_* env overrides
-  bridge.rs      typed OpenClaw WS envelope protocol (camelCase on the wire)
-  cron.rs        5-field UNIX-cron parser (UTC, self-contained)
-  scheduler.rs   in-process cron engine: add/remove/list + fire events
-  session.rs     session manager: create/switch/workspace/list/delete
-  mcp.rs         remote MCP client (Streamable HTTP) + hot-reload registry
-  hitl.rs        Human-in-the-Loop confirmation broker + timeout
-  tools.rs       function-call tool router (scheduler + mcp + session tools)
-  agent.rs       async-openai chat completions + tool-calling loop + history
-  runtime.rs     connect / subscribe / heartbeat / reconnect + tool wiring
-  main.rs        thin binary: init tracing, drive runtime, signal handling
+  config.rs        config.toml + SLOTH_* env overrides
+  bridge.rs        typed OpenClaw WS envelope protocol (camelCase on the wire)
+  cron.rs          5-field UNIX-cron parser (UTC, self-contained)
+  scheduler.rs     in-process cron engine: add/remove/list + fire events
+  session.rs       session manager: create/switch/workspace/list/delete
+  mcp.rs           remote MCP client (Streamable HTTP) + hot-reload registry
+  hitl.rs          Human-in-the-Loop confirmation broker + timeout
+  skill.rs         markdown skill registry (frontmatter + body templates, hot-reloaded)
+  a2a.rs           Agent2Agent remote-agent registry (a2a-rs SDK, Agent Card discovery)
+  model_catalog.rs YAML model catalog + auto-pick strategies (cost/capacity/benchmarks)
+  compact.rs       conversation-history auto-compactor (summarize old turns)
+  memory.rs        per-sender persistent memory + system-prompt injection
+  tools.rs         function-call tool router (all built-in + dynamic tools)
+  agent.rs         async-openai chat completions + tool-calling loop + history,
+                   compaction, and memory injection
+  runtime.rs       connect / subscribe / heartbeat / reconnect + tool wiring
+  main.rs          thin binary: init tracing, drive runtime, signal handling
 tests/
   agent_live.rs       live ChatAgent tests against the gateway
   bridge_e2e.rs       live end-to-end round trip through a mock bridge
-  features_e2e.rs     unit + e2e for cron, scheduler, sessions, HITL, remote MCP
-                       (mock MCP server, hot reload, router) + a live LLM
+  features_e2e.rs     unit + e2e for cron, scheduler, sessions, HITL, remote MCP,
+                       skills, A2A, model catalog, compaction, and memory
+                       (mock servers, hot reload, router) + a live LLM
                        function-calling test (#[ignore]d)
   mattermost_e2e.rs   live round trip through a real Mattermost server + bridge image
 ```

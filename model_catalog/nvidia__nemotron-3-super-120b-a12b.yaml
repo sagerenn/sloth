@@ -1,0 +1,20 @@
+# Scraped from OpenRouter (most-popular). See scripts/scrape_openrouter_models.py
+models:
+- id: nvidia/nemotron-3-super-120b-a12b
+  name: 'NVIDIA: Nemotron 3 Super'
+  provider: nvidia
+  context_window: 1000000
+  max_output: 16384
+  modalities:
+    input:
+    - text
+    output:
+    - text
+    wire: text->text
+  pricing:
+    prompt_per_1m: 0.085
+    completion_per_1m: 0.4
+  scores:
+    intelligence_index: 25.4
+    coding_index: 37.7
+    agentic_index: 8.7

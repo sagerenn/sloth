@@ -1,0 +1,50 @@
+# Scraped from OpenRouter (most-popular). See scripts/scrape_openrouter_models.py
+models:
+- id: minimax/minimax-m3
+  name: 'MiniMax: MiniMax M3'
+  provider: minimax
+  context_window: 1048576
+  max_output: 512000
+  modalities:
+    input:
+    - text
+    - image
+    - video
+    output:
+    - text
+    wire: text+image+video->text
+  pricing:
+    prompt_per_1m: 0.3
+    completion_per_1m: 1.2
+  scores:
+    elo:agents:androidnative: 989.0
+    win_rate:agents:androidnative: 20.6
+    rank:agents:androidnative: 27.0
+    elo:models:3d: 1311.0
+    win_rate:models:3d: 57.2
+    rank:models:3d: 15.0
+    elo:models:asciiart: 1226.0
+    win_rate:models:asciiart: 51.1
+    rank:models:asciiart: 15.0
+    elo:models:codecategories: 1307.0
+    win_rate:models:codecategories: 55.6
+    rank:models:codecategories: 12.0
+    elo:models:dataviz: 1290.0
+    win_rate:models:dataviz: 56.3
+    rank:models:dataviz: 12.0
+    elo:models:gamedev: 1291.0
+    win_rate:models:gamedev: 51.7
+    rank:models:gamedev: 19.0
+    elo:models:svg: 1251.0
+    win_rate:models:svg: 55.5
+    rank:models:svg: 13.0
+    elo:models:uicomponent: 1288.0
+    win_rate:models:uicomponent: 53.1
+    rank:models:uicomponent: 19.0
+    elo:models:website: 1305.0
+    win_rate:models:website: 55.6
+    rank:models:website: 12.0
+    intelligence_index: 44.4
+    coding_index: 58.6
+    agentic_index: 35.4
+    average: 1250.9

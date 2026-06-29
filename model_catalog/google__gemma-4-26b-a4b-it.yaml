@@ -1,0 +1,21 @@
+# Scraped from OpenRouter (most-popular). See scripts/scrape_openrouter_models.py
+models:
+- id: google/gemma-4-26b-a4b-it
+  name: 'Google: Gemma 4 26B A4B '
+  provider: google
+  context_window: 262144
+  modalities:
+    input:
+    - image
+    - text
+    - video
+    output:
+    - text
+    wire: text+image+video->text
+  pricing:
+    prompt_per_1m: 0.06
+    completion_per_1m: 0.33
+  scores:
+    intelligence_index: 25.7
+    coding_index: 39.3
+    agentic_index: 11.0

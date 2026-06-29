@@ -1,0 +1,62 @@
+# Scraped from OpenRouter (most-popular). See scripts/scrape_openrouter_models.py
+models:
+- id: openai/gpt-5.4
+  name: 'OpenAI: GPT-5.4'
+  provider: openai
+  context_window: 1050000
+  max_output: 128000
+  modalities:
+    input:
+    - text
+    - image
+    - file
+    output:
+    - text
+    wire: text+image+file->text
+  pricing:
+    prompt_per_1m: 2.5
+    completion_per_1m: 15.0
+  scores:
+    elo:models:3d: 1182.0
+    win_rate:models:3d: 43.4
+    rank:models:3d: 50.0
+    elo:models:asciiart: 1237.0
+    win_rate:models:asciiart: 54.4
+    rank:models:asciiart: 12.0
+    elo:models:codecategories: 1264.0
+    win_rate:models:codecategories: 53.4
+    rank:models:codecategories: 28.0
+    elo:models:dataviz: 1275.0
+    win_rate:models:dataviz: 56.8
+    rank:models:dataviz: 18.0
+    elo:models:gamedev: 1306.0
+    win_rate:models:gamedev: 58.1
+    rank:models:gamedev: 13.0
+    elo:models:svg: 1254.0
+    win_rate:models:svg: 58.1
+    rank:models:svg: 12.0
+    elo:models:uicomponent: 1299.0
+    win_rate:models:uicomponent: 58.8
+    rank:models:uicomponent: 14.0
+    elo:models:website: 1266.0
+    win_rate:models:website: 53.4
+    rank:models:website: 27.0
+    elo:agents:androidnative: 1043.0
+    win_rate:agents:androidnative: 47.5
+    rank:agents:androidnative: 26.0
+    elo:agents:fullstack: 1086.0
+    win_rate:agents:fullstack: 40.8
+    rank:agents:fullstack: 24.0
+    elo:agents:godotgamedev: 1172.0
+    win_rate:agents:godotgamedev: 46.9
+    rank:agents:godotgamedev: 14.0
+    elo:agents:mobileapps: 1152.0
+    win_rate:agents:mobileapps: 44.4
+    rank:agents:mobileapps: 25.0
+    elo:agents:webapps: 1138.0
+    win_rate:agents:webapps: 41.8
+    rank:agents:webapps: 20.0
+    intelligence_index: 51.4
+    coding_index: 71.1
+    agentic_index: 41.1
+    average: 1205.7

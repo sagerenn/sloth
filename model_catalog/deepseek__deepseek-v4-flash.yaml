@@ -1,0 +1,45 @@
+# Scraped from OpenRouter (most-popular). See scripts/scrape_openrouter_models.py
+models:
+- id: deepseek/deepseek-v4-flash
+  name: 'DeepSeek: DeepSeek V4 Flash'
+  provider: deepseek
+  context_window: 1048576
+  max_output: 65536
+  modalities:
+    input:
+    - text
+    output:
+    - text
+    wire: text->text
+  pricing:
+    prompt_per_1m: 0.09
+    completion_per_1m: 0.18
+  scores:
+    elo:models:3d: 1271.0
+    win_rate:models:3d: 50.0
+    rank:models:3d: 25.0
+    elo:models:asciiart: 1173.0
+    win_rate:models:asciiart: 45.5
+    rank:models:asciiart: 33.0
+    elo:models:codecategories: 1258.0
+    win_rate:models:codecategories: 50.3
+    rank:models:codecategories: 29.0
+    elo:models:dataviz: 1170.0
+    win_rate:models:dataviz: 42.2
+    rank:models:dataviz: 59.0
+    elo:models:gamedev: 1264.0
+    win_rate:models:gamedev: 50.6
+    rank:models:gamedev: 27.0
+    elo:models:svg: 1214.0
+    win_rate:models:svg: 49.3
+    rank:models:svg: 22.0
+    elo:models:uicomponent: 1224.0
+    win_rate:models:uicomponent: 47.0
+    rank:models:uicomponent: 38.0
+    elo:models:website: 1253.0
+    win_rate:models:website: 51.1
+    rank:models:website: 30.0
+    intelligence_index: 40.3
+    coding_index: 56.2
+    agentic_index: 31.1
+    average: 1228.4

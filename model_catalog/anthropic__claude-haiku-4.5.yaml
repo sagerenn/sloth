@@ -1,0 +1,47 @@
+# Scraped from OpenRouter (most-popular). See scripts/scrape_openrouter_models.py
+models:
+- id: anthropic/claude-haiku-4.5
+  name: 'Anthropic: Claude Haiku 4.5'
+  provider: anthropic
+  context_window: 200000
+  max_output: 64000
+  modalities:
+    input:
+    - text
+    - image
+    - file
+    output:
+    - text
+    wire: text+image+file->text
+  pricing:
+    prompt_per_1m: 1.0
+    completion_per_1m: 5.0
+  scores:
+    elo:models:3d: 1152.0
+    win_rate:models:3d: 41.2
+    rank:models:3d: 62.0
+    elo:models:asciiart: 1186.0
+    win_rate:models:asciiart: 49.3
+    rank:models:asciiart: 30.0
+    elo:models:codecategories: 1165.0
+    win_rate:models:codecategories: 44.8
+    rank:models:codecategories: 63.0
+    elo:models:dataviz: 1168.0
+    win_rate:models:dataviz: 45.6
+    rank:models:dataviz: 61.0
+    elo:models:gamedev: 1164.0
+    win_rate:models:gamedev: 44.6
+    rank:models:gamedev: 60.0
+    elo:models:svg: 1083.0
+    win_rate:models:svg: 39.1
+    rank:models:svg: 55.0
+    elo:models:uicomponent: 1155.0
+    win_rate:models:uicomponent: 42.7
+    rank:models:uicomponent: 60.0
+    elo:models:website: 1166.0
+    win_rate:models:website: 45.0
+    rank:models:website: 63.0
+    intelligence_index: 29.6
+    coding_index: 43.9
+    agentic_index: 16.4
+    average: 1154.9

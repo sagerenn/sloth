@@ -1,0 +1,44 @@
+# Scraped from OpenRouter (most-popular). See scripts/scrape_openrouter_models.py
+models:
+- id: xiaomi/mimo-v2.5
+  name: 'Xiaomi: MiMo-V2.5'
+  provider: xiaomi
+  context_window: 1048576
+  modalities:
+    input:
+    - text
+    - audio
+    - image
+    - video
+    output:
+    - text
+    wire: text+image+audio+video->text
+  pricing:
+    prompt_per_1m: 0.105
+    completion_per_1m: 0.28
+  scores:
+    elo:models:3d: 1300.0
+    win_rate:models:3d: 54.1
+    rank:models:3d: 18.0
+    elo:models:asciiart: 1197.0
+    win_rate:models:asciiart: 48.8
+    rank:models:asciiart: 25.0
+    elo:models:codecategories: 1304.0
+    win_rate:models:codecategories: 55.0
+    rank:models:codecategories: 14.0
+    elo:models:dataviz: 1280.0
+    win_rate:models:dataviz: 53.8
+    rank:models:dataviz: 16.0
+    elo:models:gamedev: 1302.0
+    win_rate:models:gamedev: 56.1
+    rank:models:gamedev: 14.0
+    elo:models:svg: 1217.0
+    win_rate:models:svg: 52.2
+    rank:models:svg: 21.0
+    elo:models:uicomponent: 1313.0
+    win_rate:models:uicomponent: 56.3
+    rank:models:uicomponent: 12.0
+    elo:models:website: 1305.0
+    win_rate:models:website: 55.2
+    rank:models:website: 11.0
+    average: 1277.2

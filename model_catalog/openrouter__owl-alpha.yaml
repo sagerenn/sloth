@@ -1,0 +1,16 @@
+# Scraped from OpenRouter (most-popular). See scripts/scrape_openrouter_models.py
+models:
+- id: openrouter/owl-alpha
+  name: Owl Alpha
+  provider: openrouter
+  context_window: 1048756
+  max_output: 262144
+  modalities:
+    input:
+    - text
+    output:
+    - text
+    wire: text->text
+  pricing:
+    prompt_per_1m: 0.0
+    completion_per_1m: 0.0

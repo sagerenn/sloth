@@ -1,0 +1,44 @@
+# Scraped from OpenRouter (most-popular). See scripts/scrape_openrouter_models.py
+models:
+- id: openai/gpt-5-mini
+  name: 'OpenAI: GPT-5 Mini'
+  provider: openai
+  context_window: 400000
+  max_output: 128000
+  modalities:
+    input:
+    - text
+    - image
+    - file
+    output:
+    - text
+    wire: text+image+file->text
+  pricing:
+    prompt_per_1m: 0.25
+    completion_per_1m: 2.0
+  scores:
+    elo:models:3d: 1114.0
+    win_rate:models:3d: 37.3
+    rank:models:3d: 73.0
+    elo:models:asciiart: 1168.0
+    win_rate:models:asciiart: 44.7
+    rank:models:asciiart: 34.0
+    elo:models:codecategories: 1165.0
+    win_rate:models:codecategories: 43.9
+    rank:models:codecategories: 64.0
+    elo:models:dataviz: 1168.0
+    win_rate:models:dataviz: 43.6
+    rank:models:dataviz: 62.0
+    elo:models:gamedev: 1196.0
+    win_rate:models:gamedev: 46.6
+    rank:models:gamedev: 54.0
+    elo:models:svg: 1149.0
+    win_rate:models:svg: 46.0
+    rank:models:svg: 41.0
+    elo:models:uicomponent: 1159.0
+    win_rate:models:uicomponent: 42.4
+    rank:models:uicomponent: 58.0
+    elo:models:website: 1168.0
+    win_rate:models:website: 44.7
+    rank:models:website: 62.0
+    average: 1160.9

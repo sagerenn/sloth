@@ -1,0 +1,42 @@
+# Scraped from OpenRouter (most-popular). See scripts/scrape_openrouter_models.py
+models:
+- id: deepseek/deepseek-v3.2
+  name: 'DeepSeek: DeepSeek V3.2'
+  provider: deepseek
+  context_window: 131072
+  max_output: 64000
+  modalities:
+    input:
+    - text
+    output:
+    - text
+    wire: text->text
+  pricing:
+    prompt_per_1m: 0.2288
+    completion_per_1m: 0.3432
+  scores:
+    elo:models:3d: 1212.0
+    win_rate:models:3d: 50.2
+    rank:models:3d: 40.0
+    elo:models:asciiart: 1128.0
+    win_rate:models:asciiart: 41.2
+    rank:models:asciiart: 42.0
+    elo:models:codecategories: 1214.0
+    win_rate:models:codecategories: 49.8
+    rank:models:codecategories: 48.0
+    elo:models:dataviz: 1200.0
+    win_rate:models:dataviz: 48.6
+    rank:models:dataviz: 48.0
+    elo:models:gamedev: 1198.0
+    win_rate:models:gamedev: 46.8
+    rank:models:gamedev: 51.0
+    elo:models:svg: 1090.0
+    win_rate:models:svg: 41.0
+    rank:models:svg: 52.0
+    elo:models:uicomponent: 1203.0
+    win_rate:models:uicomponent: 47.3
+    rank:models:uicomponent: 47.0
+    elo:models:website: 1218.0
+    win_rate:models:website: 50.7
+    rank:models:website: 46.0
+    average: 1182.9

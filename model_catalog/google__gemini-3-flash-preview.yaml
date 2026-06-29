@@ -1,0 +1,55 @@
+# Scraped from OpenRouter (most-popular). See scripts/scrape_openrouter_models.py
+models:
+- id: google/gemini-3-flash-preview
+  name: 'Google: Gemini 3 Flash Preview'
+  provider: google
+  context_window: 1048576
+  max_output: 65535
+  modalities:
+    input:
+    - text
+    - image
+    - file
+    - audio
+    - video
+    output:
+    - text
+    wire: text+image+file+audio+video->text
+  pricing:
+    prompt_per_1m: 0.5
+    completion_per_1m: 3.0
+  scores:
+    elo:agents:agenticslides: 1073.0
+    win_rate:agents:agenticslides: 39.3
+    rank:agents:agenticslides: 9.0
+    elo:agents:agenticslides(python-pptx): 1075.0
+    win_rate:agents:agenticslides(python-pptx): 39.3
+    rank:agents:agenticslides(python-pptx): 9.0
+    elo:agents:androidnative: 1064.0
+    win_rate:agents:androidnative: 47.9
+    rank:agents:androidnative: 24.0
+    elo:agents:fullstack: 1130.0
+    win_rate:agents:fullstack: 47.1
+    rank:agents:fullstack: 17.0
+    elo:agents:godotgamedev: 1218.0
+    win_rate:agents:godotgamedev: 52.3
+    rank:agents:godotgamedev: 8.0
+    elo:agents:mobileapps: 1187.0
+    win_rate:agents:mobileapps: 49.8
+    rank:agents:mobileapps: 17.0
+    elo:agents:webapps: 1185.0
+    win_rate:agents:webapps: 49.5
+    rank:agents:webapps: 17.0
+    elo:models:3d: 1263.0
+    win_rate:models:3d: 62.7
+    rank:models:3d: 28.0
+    elo:models:codecategories: 1240.0
+    win_rate:models:codecategories: 57.6
+    rank:models:codecategories: 33.0
+    elo:models:gamedev: 1233.0
+    win_rate:models:gamedev: 58.3
+    rank:models:gamedev: 38.0
+    elo:models:website: 1240.0
+    win_rate:models:website: 57.0
+    rank:models:website: 33.0
+    average: 1173.5

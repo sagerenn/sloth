@@ -1,0 +1,82 @@
+# Scraped from OpenRouter (most-popular). See scripts/scrape_openrouter_models.py
+models:
+- id: moonshotai/kimi-k2.6
+  name: 'MoonshotAI: Kimi K2.6'
+  provider: moonshotai
+  context_window: 262144
+  max_output: 262144
+  modalities:
+    input:
+    - text
+    - image
+    output:
+    - text
+    wire: text+image->text
+  pricing:
+    prompt_per_1m: 0.66
+    completion_per_1m: 3.41
+  scores:
+    elo:agents:agenticgamedev: 1184.0
+    win_rate:agents:agenticgamedev: 50.3
+    rank:agents:agenticgamedev: 7.0
+    elo:agents:agentichtmlslides: 1248.0
+    win_rate:agents:agentichtmlslides: 59.0
+    rank:agents:agentichtmlslides: 2.0
+    elo:agents:agenticslides: 1187.0
+    win_rate:agents:agenticslides: 45.8
+    rank:agents:agenticslides: 5.0
+    elo:agents:agenticslides(html): 1252.0
+    win_rate:agents:agenticslides(html): 59.2
+    rank:agents:agenticslides(html): 2.0
+    elo:agents:agenticslides(python-pptx): 1186.0
+    win_rate:agents:agenticslides(python-pptx): 45.5
+    rank:agents:agenticslides(python-pptx): 5.0
+    elo:agents:androidnative: 1210.0
+    win_rate:agents:androidnative: 50.5
+    rank:agents:androidnative: 12.0
+    elo:agents:fullstack: 1223.0
+    win_rate:agents:fullstack: 56.4
+    rank:agents:fullstack: 11.0
+    elo:agents:godotgamedev: 1214.0
+    win_rate:agents:godotgamedev: 53.0
+    rank:agents:godotgamedev: 10.0
+    elo:agents:htmlslides: 1251.0
+    win_rate:agents:htmlslides: 59.0
+    rank:agents:htmlslides: 2.0
+    elo:agents:mobileapps: 1226.0
+    win_rate:agents:mobileapps: 53.1
+    rank:agents:mobileapps: 8.0
+    elo:agents:pptxslides: 1181.0
+    win_rate:agents:pptxslides: 44.3
+    rank:agents:pptxslides: 5.0
+    elo:agents:python-pptxslides: 1180.0
+    win_rate:agents:python-pptxslides: 42.1
+    rank:agents:python-pptxslides: 6.0
+    elo:agents:webapps: 1259.0
+    win_rate:agents:webapps: 58.2
+    rank:agents:webapps: 6.0
+    elo:models:3d: 1357.0
+    win_rate:models:3d: 62.9
+    rank:models:3d: 3.0
+    elo:models:codecategories: 1328.0
+    win_rate:models:codecategories: 58.1
+    rank:models:codecategories: 6.0
+    elo:models:dataviz: 1302.0
+    win_rate:models:dataviz: 56.7
+    rank:models:dataviz: 8.0
+    elo:models:gamedev: 1317.0
+    win_rate:models:gamedev: 58.1
+    rank:models:gamedev: 12.0
+    elo:models:svg: 1234.0
+    win_rate:models:svg: 52.5
+    rank:models:svg: 17.0
+    elo:models:uicomponent: 1322.0
+    win_rate:models:uicomponent: 57.4
+    rank:models:uicomponent: 9.0
+    elo:models:website: 1318.0
+    win_rate:models:website: 56.3
+    rank:models:website: 8.0
+    intelligence_index: 42.8
+    coding_index: 56.0
+    agentic_index: 30.3
+    average: 1249.0

@@ -1,0 +1,65 @@
+# Scraped from OpenRouter (most-popular). See scripts/scrape_openrouter_models.py
+models:
+- id: anthropic/claude-sonnet-4.6
+  name: 'Anthropic: Claude Sonnet 4.6'
+  provider: anthropic
+  context_window: 1000000
+  max_output: 128000
+  modalities:
+    input:
+    - text
+    - image
+    - file
+    output:
+    - text
+    wire: text+image+file->text
+  pricing:
+    prompt_per_1m: 3.0
+    completion_per_1m: 15.0
+  scores:
+    elo:agents:agenticgamedev: 1200.0
+    win_rate:agents:agenticgamedev: 50.9
+    rank:agents:agenticgamedev: 6.0
+    elo:agents:androidnative: 1238.0
+    win_rate:agents:androidnative: 61.8
+    rank:agents:androidnative: 8.0
+    elo:agents:fullstack: 1274.0
+    win_rate:agents:fullstack: 63.1
+    rank:agents:fullstack: 5.0
+    elo:agents:godotgamedev: 1277.0
+    win_rate:agents:godotgamedev: 60.6
+    rank:agents:godotgamedev: 1.0
+    elo:agents:mobileapps: 1256.0
+    win_rate:agents:mobileapps: 59.2
+    rank:agents:mobileapps: 4.0
+    elo:agents:webapps: 1246.0
+    win_rate:agents:webapps: 55.8
+    rank:agents:webapps: 9.0
+    elo:models:3d: 1318.0
+    win_rate:models:3d: 60.9
+    rank:models:3d: 13.0
+    elo:models:asciiart: 1276.0
+    win_rate:models:asciiart: 60.3
+    rank:models:asciiart: 8.0
+    elo:models:codecategories: 1327.0
+    win_rate:models:codecategories: 61.6
+    rank:models:codecategories: 7.0
+    elo:models:dataviz: 1318.0
+    win_rate:models:dataviz: 60.9
+    rank:models:dataviz: 6.0
+    elo:models:gamedev: 1322.0
+    win_rate:models:gamedev: 60.3
+    rank:models:gamedev: 10.0
+    elo:models:svg: 1255.0
+    win_rate:models:svg: 59.6
+    rank:models:svg: 11.0
+    elo:models:uicomponent: 1324.0
+    win_rate:models:uicomponent: 61.9
+    rank:models:uicomponent: 7.0
+    elo:models:website: 1328.0
+    win_rate:models:website: 61.7
+    rank:models:website: 5.0
+    intelligence_index: 47.2
+    coding_index: 63.0
+    agentic_index: 40.8
+    average: 1282.8

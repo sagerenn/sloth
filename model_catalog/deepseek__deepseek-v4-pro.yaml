@@ -1,0 +1,54 @@
+# Scraped from OpenRouter (most-popular). See scripts/scrape_openrouter_models.py
+models:
+- id: deepseek/deepseek-v4-pro
+  name: 'DeepSeek: DeepSeek V4 Pro'
+  provider: deepseek
+  context_window: 1048576
+  max_output: 384000
+  modalities:
+    input:
+    - text
+    output:
+    - text
+    wire: text->text
+  pricing:
+    prompt_per_1m: 0.435
+    completion_per_1m: 0.87
+  scores:
+    elo:agents:fullstack: 948.0
+    win_rate:agents:fullstack: 22.1
+    rank:agents:fullstack: 29.0
+    elo:agents:godotgamedev: 1097.0
+    win_rate:agents:godotgamedev: 34.0
+    rank:agents:godotgamedev: 20.0
+    elo:agents:webapps: 1017.0
+    win_rate:agents:webapps: 26.6
+    rank:agents:webapps: 25.0
+    elo:models:3d: 1330.0
+    win_rate:models:3d: 61.3
+    rank:models:3d: 7.0
+    elo:models:asciiart: 1201.0
+    win_rate:models:asciiart: 47.3
+    rank:models:asciiart: 21.0
+    elo:models:codecategories: 1289.0
+    win_rate:models:codecategories: 55.1
+    rank:models:codecategories: 19.0
+    elo:models:dataviz: 1221.0
+    win_rate:models:dataviz: 48.9
+    rank:models:dataviz: 37.0
+    elo:models:gamedev: 1298.0
+    win_rate:models:gamedev: 56.5
+    rank:models:gamedev: 17.0
+    elo:models:svg: 1191.0
+    win_rate:models:svg: 46.8
+    rank:models:svg: 32.0
+    elo:models:uicomponent: 1274.0
+    win_rate:models:uicomponent: 52.1
+    rank:models:uicomponent: 24.0
+    elo:models:website: 1280.0
+    win_rate:models:website: 53.9
+    rank:models:website: 22.0
+    intelligence_index: 44.3
+    coding_index: 59.4
+    agentic_index: 36.4
+    average: 1195.1

@@ -1,0 +1,18 @@
+# Scraped from OpenRouter (most-popular). See scripts/scrape_openrouter_models.py
+models:
+- id: openai/gpt-4o-mini
+  name: 'OpenAI: GPT-4o-mini'
+  provider: openai
+  context_window: 128000
+  max_output: 16384
+  modalities:
+    input:
+    - text
+    - image
+    - file
+    output:
+    - text
+    wire: text+image+file->text
+  pricing:
+    prompt_per_1m: 0.15
+    completion_per_1m: 0.6
