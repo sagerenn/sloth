@@ -187,12 +187,12 @@ impl ToolRouter {
         // Scheduler tools.
         tools.push(tool_def(
             names::SCHED_ADD,
-            "Schedule a time-based job that runs a prompt on a cron schedule (5-field UNIX cron, UTC). Use this to set up recurring tasks.",
+            "Schedule a time-based job that runs a prompt on a cron schedule (UTC). Use this to set up recurring or delayed tasks.",
             json!({
                 "type": "object",
                 "properties": {
                     "name": { "type": "string", "description": "Human-readable job name." },
-                    "cron": { "type": "string", "description": "5-field cron expression in UTC, e.g. '*/5 * * * *' or '0 9 * * 1-5'." },
+                    "cron": { "type": "string", "description": "Cron expression in UTC. 5-field minute-granular (minute hour dom month dow, e.g. '0 9 * * 1-5') OR 6-field second-precision (second minute hour dom month dow, e.g. '*/10 * * * * *' fires every 10 seconds)." },
                     "prompt": { "type": "string", "description": "Prompt to run each time the job fires." },
                     "session_id": { "type": "string", "description": "Session id the prompt runs under. Optional; defaults to 'default'." }
                 },
@@ -473,6 +473,9 @@ impl ToolRouter {
                     cron: cron.to_string(),
                     prompt: prompt.to_string(),
                     session_id,
+                    // Reply to the user who scheduled the job, so a fired job's
+                    // output reaches them rather than broadcasting to the channel.
+                    reply_to: Some(sender_id.to_string()),
                 }) {
                     Ok(id) => ToolOutcome::ok(json!({ "id": id, "scheduled": true }).to_string()),
                     Err(e) => ToolOutcome::err(format!("failed to schedule: {e:#}")),

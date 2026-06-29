@@ -1,7 +1,8 @@
 //! Time-based scheduler: a small in-process cron engine.
 //!
-//! Each [`ScheduledJob`] carries a name, a 5-field cron expression, a prompt,
-//! and the session the prompt should be dispatched into when the job fires.
+//! Each [`ScheduledJob`] carries a name, a cron expression (5-field
+//! minute-granular or 6-field second-precision), a prompt, and the session the
+//! prompt should be dispatched into when the job fires.
 //! The scheduler tracks each job's next fire time and emits [`FiredJob`]
 //! events as they come due. It is driven by a background task in [`Scheduler::start`]
 //! but its due-job computation is exposed synchronously via [`Scheduler::evaluate`]
@@ -25,12 +26,19 @@ pub struct ScheduledJob {
     pub id: String,
     /// Human-readable name.
     pub name: String,
-    /// 5-field cron expression (UTC).
+    /// Cron expression (UTC): 5-field (minute-granular) or 6-field
+    /// (second-precision, leading seconds field).
     pub cron: String,
     /// Prompt dispatched to the agent session when the job fires.
     pub prompt: String,
     /// Session id the firing prompt runs under.
     pub session_id: String,
+    /// Outbound `to` target the fired job's reply is sent to. When `None`,
+    /// the runtime falls back to the channel (broadcast). Set from the
+    /// originating sender so a fired job replies to the user who scheduled it
+    /// rather than the whole channel.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reply_to: Option<String>,
 }
 
 /// Internal entry: job + parsed cron + next fire time (epoch secs).
@@ -48,6 +56,8 @@ pub struct FiredJob {
     pub name: String,
     pub prompt: String,
     pub session_id: String,
+    /// Outbound `to` target for the fired job's reply (copied from the job).
+    pub reply_to: Option<String>,
     /// The instant (epoch secs) the job fired at.
     pub fired_at: i64,
 }
@@ -126,6 +136,7 @@ impl Scheduler {
                     name: e.job.name.clone(),
                     prompt: e.job.prompt.clone(),
                     session_id: e.job.session_id.clone(),
+                    reply_to: e.job.reply_to.clone(),
                     fired_at: e.next_fire,
                 });
                 e.next_fire = e.cron.next_after(e.next_fire);
@@ -190,7 +201,37 @@ pub fn wall_secs() -> i64 {
 
 #[cfg(test)]
 mod tests {
+    use std::time::Duration;
+
     use super::*;
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn start_ticker_emits_due_second_precision_job() {
+        // Regression guard: the background ticker spawned by `start` must keep
+        // running (its shutdown sender must not be dropped prematurely) and
+        // actually emit a FiredJob for a due job. A 6-field `*/1 * * * * *`
+        // job (every second) should fire within a few seconds.
+        let s = Scheduler::new();
+        let id = s
+            .add(ScheduledJob {
+                id: String::new(),
+                name: "every-second".into(),
+                cron: "*/1 * * * * *".into(),
+                prompt: "tick".into(),
+                session_id: "default".into(),
+                reply_to: None,
+            })
+            .unwrap();
+        let (_stx, srx) = tokio::sync::oneshot::channel::<()>();
+        let mut rx = s.start(1, srx);
+        // The next fire is at most ~1s out (every-second cron); allow slack.
+        let fired = tokio::time::timeout(Duration::from_secs(5), rx.recv()).await;
+        let fired = fired
+            .expect("ticker never emitted a FiredJob within 5s")
+            .expect("channel closed");
+        assert_eq!(fired.id, id);
+        assert_eq!(fired.prompt, "tick");
+    }
 
     #[test]
     fn add_and_evaluate_fires_due_job_once() {
@@ -203,6 +244,7 @@ mod tests {
                 cron: "* * * * *".into(),
                 prompt: "hello".into(),
                 session_id: "default".into(),
+                reply_to: None,
             },
             now,
         )
@@ -231,6 +273,7 @@ mod tests {
                     cron: "*/5 * * * *".into(),
                     prompt: "p".into(),
                     session_id: "default".into(),
+                    reply_to: None,
                 },
                 0,
             )
@@ -252,6 +295,7 @@ mod tests {
                     cron: "not a cron".into(),
                     prompt: "p".into(),
                     session_id: "default".into(),
+                    reply_to: None,
                 },
                 0,
             )

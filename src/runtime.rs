@@ -211,12 +211,15 @@ where
     tokio::pin!(shutdown);
 
     // Start the scheduler if enabled: it emits fired jobs we feed back into
-    // the agent as synthetic inbound prompts.
+    // the agent as synthetic inbound prompts. `_sched_handle` must outlive the
+    // whole run: it's the oneshot sender whose drop stops the ticker, so we
+    // bind it in the outer scope (not inside the `if` block, where it would be
+    // dropped immediately and kill the ticker the instant it starts).
+    let mut _sched_handle: Option<tokio::sync::oneshot::Sender<()>> = None;
     let mut sched_rx = if cfg.scheduler.enabled {
         let (stx, srx) = tokio::sync::oneshot::channel::<()>();
         let rx = ctx.scheduler.start(cfg.scheduler.tick_secs, srx);
-        // Hold the shutdown sender until we exit; dropping it stops the ticker.
-        let _sched_handle = stx;
+        _sched_handle = Some(stx);
         Some(rx)
     } else {
         None
@@ -473,7 +476,14 @@ async fn handle_fired_job(
         .await
     {
         Ok(reply) => {
-            let env = build_send_text(channel, account_id, channel, &reply.text, None, None);
+            // Route the scheduled reply to the user who scheduled the job when
+            // we captured a target; otherwise fall back to the channel.
+            let to = job
+                .reply_to
+                .as_deref()
+                .map(|r| format_reply_target(channel, r))
+                .unwrap_or_else(|| channel.to_string());
+            let env = build_send_text(channel, account_id, &to, &reply.text, None, None);
             if tx.send(env).await.is_err() {
                 tracing::warn!("outbound channel closed; dropping scheduled reply");
             }

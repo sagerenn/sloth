@@ -1,9 +1,16 @@
-//! A minimal 5-field UNIX-cron expression parser.
+//! A small UNIX-cron expression parser with optional **second-level precision**.
 //!
-//! Fields: minute, hour, day-of-month, month, day-of-week (0-7, both 0 and 7
-//! are Sunday). Supports `*`, comma lists, ranges (`a-b`), and step values
-//! (`a-b/n` or `*/n`). Named ranges (Jan, Mon) are intentionally not
-//! supported — numeric fields keep the parser dependency-free and predictable.
+//! Accepts either a 5-field expression (`minute hour dom month dow`) — the
+//! classic Vixie-cron form, minute-granular — or a 6-field expression
+//! (`second minute hour dom month dow`) for sub-minute scheduling. This is
+//! what lets the agent honor "in 10 seconds" requests: a job like
+//! `*/10 * * * * *` fires every 10 seconds.
+//!
+//! Fields: second (0-59), minute, hour, day-of-month, month, day-of-week
+//! (0-7, both 0 and 7 are Sunday). Supports `*`, comma lists, ranges
+//! (`a-b`), and step values (`a-b/n` or `*/n`). Named ranges (Jan, Mon) are
+//! intentionally not supported — numeric fields keep the parser
+//! dependency-free and predictable.
 //!
 //! This is intentionally a small, self-contained parser rather than a pull of
 //! a heavy cron crate: it gives us `next_after` for scheduling and full
@@ -11,35 +18,58 @@
 
 use anyhow::{Result, bail};
 
-/// Minimum / maximum (inclusive) bounds for each of the 5 cron fields.
+/// Minimum / maximum (inclusive) bounds for each of the 5 standard cron fields
+/// (minute, hour, day-of-month, month, day-of-week).
 const FIELD_BOUNDS: [(u8, u8); 5] = [(0, 59), (0, 23), (1, 31), (1, 12), (0, 7)];
+
+/// Bounds for the optional seconds field.
+const SECONDS_BOUNDS: (u8, u8) = (0, 59);
 
 /// A compiled cron expression.
 #[derive(Debug, Clone)]
 pub struct Cron {
     /// One bitset per field; bit `i` set means "value i is selected".
+    /// Index order: [minute, hour, day-of-month, month, day-of-week].
     fields: [u64; 5],
+    /// Seconds bitset. `None` for a 5-field (minute-granular) expression, in
+    /// which case only whole-minute instants are ever considered to match.
+    seconds: Option<u64>,
     raw: String,
 }
 
 impl Cron {
-    /// Parse a 5-field cron expression.
+    /// Parse a cron expression.
+    ///
+    /// 5 fields → minute-granular (classic Vixie form). 6 fields →
+    /// second-level precision (the first field is seconds). Any other count is
+    /// an error.
     pub fn parse(expr: &str) -> Result<Self> {
         let parts: Vec<&str> = expr.split_whitespace().collect();
-        if parts.len() != 5 {
+        if parts.len() != 5 && parts.len() != 6 {
             bail!(
-                "cron expression must have exactly 5 fields, got {}: {expr:?}",
+                "cron expression must have 5 or 6 fields, got {}: {expr:?}",
                 parts.len()
             );
         }
+        let (seconds, std) = match parts.len() {
+            5 => (None, parts.as_slice()),
+            // 6-field: first is seconds, rest are the standard 5.
+            _ => (Some(parse_field(parts[0], SECONDS_BOUNDS)?), &parts[1..]),
+        };
         let mut fields = [0u64; 5];
-        for (i, part) in parts.iter().enumerate() {
+        for (i, part) in std.iter().enumerate() {
             fields[i] = parse_field(part, FIELD_BOUNDS[i])?;
         }
         Ok(Self {
             fields,
+            seconds,
             raw: expr.trim().to_string(),
         })
+    }
+
+    /// Whether this expression has a seconds field (6-field form).
+    pub fn has_seconds(&self) -> bool {
+        self.seconds.is_some()
     }
 
     /// Original expression text.
@@ -73,21 +103,49 @@ impl Cron {
         }
     }
 
+    /// Internal matcher including the seconds field. For a 5-field expression
+    /// (`seconds == None`) the seconds bitset is treated as the wildcard "0"
+    /// (only whole-minute instants are ever probed by `next_after`), so this
+    /// reduces to [`matches`].
+    fn matches_sec(
+        &self,
+        second: u8,
+        minute: u8,
+        hour: u8,
+        day: u8,
+        month: u8,
+        weekday: u8,
+    ) -> bool {
+        if let Some(sec_bits) = self.seconds
+            && !bit(sec_bits, second)
+        {
+            return false;
+        }
+        self.matches(minute, hour, day, month, weekday)
+    }
+
     /// Find the next instant strictly after `epoch_secs` (UTC) that matches.
-    /// Iterates minute-by-minute; for the tick resolutions used here this is
-    /// cheap (the scheduler's poll drives it, and `next_after` is only called
-    /// to compute fire times lazily). Returns the matching epoch seconds.
+    ///
+    /// For a 5-field (minute-granular) expression it iterates minute-by-minute;
+    /// for a 6-field (second-precision) expression it iterates second-by-second
+    /// so a `*/10 * * * * *` job can fire mid-minute. For the tick resolutions
+    /// used here this is cheap (the scheduler's poll drives it, and `next_after`
+    /// is only called to compute fire times lazily). Returns the matching epoch
+    /// seconds.
     pub fn next_after(&self, epoch_secs: i64) -> i64 {
-        // Round up to the next whole minute.
-        let mut t = (epoch_secs / 60 + 1) * 60;
+        let step: i64 = if self.seconds.is_some() { 1 } else { 60 };
+        // Round up past `epoch_secs` to the next candidate instant on the
+        // expression's granularity (whole minute for 5-field, whole second for
+        // 6-field).
+        let mut t = (epoch_secs / step + 1) * step;
         // Guards against pathological expressions that never match.
         let limit = epoch_secs + 366 * 24 * 60 * 60; // ~1 year
         while t <= limit {
-            let (min, hr, dom, mon, wd) = to_fields(t);
-            if self.matches(min, hr, dom, mon, wd) {
+            let (sec, min, hr, dom, mon, wd) = to_fields(t);
+            if self.matches_sec(sec, min, hr, dom, mon, wd) {
                 return t;
             }
-            t += 60;
+            t += step;
         }
         t
     }
@@ -170,14 +228,16 @@ fn parse_u8(s: &str, (lo, hi): (u8, u8)) -> Result<u8> {
     Ok(n as u8)
 }
 
-/// Convert epoch seconds (UTC) to cron (min, hour, day-of-month, month, weekday).
+/// Convert epoch seconds (UTC) to cron fields
+/// (second, minute, hour, day-of-month, month, weekday).
 /// Weekday: 0 = Sunday. Civil date breakdown via the well-known days-from-civil
 /// algorithm (Howard Hinnant) — avoids pulling in a date crate.
-fn to_fields(epoch_secs: i64) -> (u8, u8, u8, u8, u8) {
+fn to_fields(epoch_secs: i64) -> (u8, u8, u8, u8, u8, u8) {
     let days = epoch_secs.div_euclid(86400);
     let secs_of_day = epoch_secs.rem_euclid(86400);
     let hour = (secs_of_day / 3600) as u8;
     let minute = ((secs_of_day % 3600) / 60) as u8;
+    let second = (secs_of_day % 60) as u8;
 
     // days-from-civil: converts a (y,m,d) <-> serial day count.
     // Convert days-since-1970-01-01 -> (year, month, day).
@@ -196,7 +256,7 @@ fn to_fields(epoch_secs: i64) -> (u8, u8, u8, u8, u8) {
     let weekday = (((days % 7) + 4 + 7) % 7) as u8;
 
     let _ = year;
-    (minute, hour, d as u8, m as u8, weekday)
+    (second, minute, hour, d as u8, m as u8, weekday)
 }
 
 #[cfg(test)]
@@ -251,5 +311,44 @@ mod tests {
         let c = Cron::parse("*/5 * * * *").unwrap();
         // epoch 0 = 1970-01-01 00:00:00 UTC (Thu). Next */5 mark after 0 → 00:05.
         assert_eq!(c.next_after(0), 300);
+    }
+
+    #[test]
+    fn six_field_parses_and_is_second_precise() {
+        let c = Cron::parse("*/10 * * * * *").unwrap();
+        assert!(c.has_seconds());
+        // epoch 0 = 00:00:00. Next */10s mark strictly after 0 → 00:00:10.
+        assert_eq!(c.next_after(0), 10);
+        assert_eq!(c.next_after(10), 20);
+        assert_eq!(c.next_after(25), 30);
+    }
+
+    #[test]
+    fn six_field_specific_second() {
+        // Fires at second 30 of every minute.
+        let c = Cron::parse("30 * * * * *").unwrap();
+        assert!(c.has_seconds());
+        // epoch 0 → next match at 00:00:30.
+        assert_eq!(c.next_after(0), 30);
+        // After 00:00:30, next is 00:01:30 (90s later).
+        assert_eq!(c.next_after(30), 90);
+    }
+
+    #[test]
+    fn rejects_wrong_field_counts() {
+        assert!(Cron::parse("* * * *").is_err());
+        assert!(Cron::parse("* * * * * * *").is_err());
+        assert!(Cron::parse("60 * * * * *").is_err()); // seconds out of range
+    }
+
+    #[test]
+    fn five_and_six_field_agree_on_minute_boundary() {
+        // A 6-field `0 * * * * *` (second 0 of every minute) must land on the
+        // same whole-minute instants as the 5-field `* * * * *`.
+        let five = Cron::parse("* * * * *").unwrap();
+        let six = Cron::parse("0 * * * * *").unwrap();
+        for t in [0_i64, 59, 60, 121, 600] {
+            assert_eq!(five.next_after(t), six.next_after(t), "at t={t}");
+        }
     }
 }

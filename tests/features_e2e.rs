@@ -83,6 +83,7 @@ async fn scheduler_fires_due_job_and_reschedules() {
                 cron: "* * * * *".into(),
                 prompt: "tick".into(),
                 session_id: "default".into(),
+                reply_to: None,
             },
             now,
         )
@@ -541,6 +542,7 @@ async fn llm_function_call_lists_scheduled_jobs() {
                 cron: "0 9 * * *".into(),
                 prompt: "morning".into(),
                 session_id: "default".into(),
+                reply_to: None,
             },
             0,
         )

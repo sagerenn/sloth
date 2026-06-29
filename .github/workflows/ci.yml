@@ -90,6 +90,45 @@ jobs:
           SLOTH_LLM_API_KEY: ${{ secrets.SLOTH_LLM_API_KEY }}
         run: cargo test --test mattermost_e2e -- --nocapture --ignored
 
+  # ─── Mattermost MCP + cron E2E ─────────────────────────────────────────────
+  # Drives the real sloth runtime + live LLM: a Mattermost user asks the agent
+  # to use a remote MCP server after a short delay. The agent schedules a
+  # second-precision cron job via scheduler_add_job; when it fires, the injected
+  # prompt drives the LLM to call the MCP tool and reply to the user.
+  #   user "after 10s, use mcp A to do something"
+  #     -> bridge -> sloth -> LLM schedules cron
+  #     -> (cron fires) -> sloth -> LLM calls mcp_A__echo -> reply -> user
+  # Covers remote MCP + the second-precision scheduler + the complete message
+  # flow in one user-driven round trip. Skips (not fails) without the LLM
+  # gateway/Docker.
+  e2e-mattermost-mcp-cron:
+    name: Mattermost MCP+cron E2E (delayed MCP task)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+
+      - name: Cache cargo registry & target
+        uses: Swatinem/rust-cache@v2
+
+      - name: Pull bridge + mattermost images
+        run: |
+          docker pull ghcr.io/sagerenn/openclaw-bridge:latest
+          docker pull mattermost/mattermost-preview:latest
+
+      - name: Run Mattermost MCP+cron E2E test
+        env:
+          SLOTH_LLM_BASE_URL: ${{ secrets.SLOTH_LLM_BASE_URL }}
+          SLOTH_LLM_MODEL: ${{ secrets.SLOTH_LLM_MODEL }}
+          SLOTH_LLM_API_KEY: ${{ secrets.SLOTH_LLM_API_KEY }}
+        run: cargo test --test mattermost_mcp_cron_e2e -- --nocapture --ignored
+
   # ─── docker (multi-arch build & push) ──────────────────────────────────────
   docker:
     name: Docker ${{ matrix.platform }}

@@ -62,9 +62,12 @@ areas to the model via OpenAI-compatible function calling (structured
    also drive a reload at runtime via `mcp_reload` and inspect servers via
    `mcp_list_servers`.
 2. **Time-based scheduler (cron)** — `scheduler_add_job` /
-   `scheduler_remove_job` / `scheduler_list_jobs` let the LLM set up 5-field
-   UNIX-cron jobs (UTC). A background ticker fires due jobs and injects their
-   prompts into the named session, producing a reply on the channel.
+   `scheduler_remove_job` / `scheduler_list_jobs` let the LLM set up
+   UNIX-cron jobs (UTC): a 5-field minute-granular expression, or a 6-field
+   second-precision expression (leading seconds field) for sub-minute
+   scheduling like "in 10 seconds". A background ticker fires due jobs and
+   injects their prompts into the named session, producing a reply to the
+   user who scheduled the job.
 3. **Session management** — `session_switch` / `session_set_workspace` /
    `session_list` manage named conversation contexts with per-session working
    directories. Each sender has an active session; history is keyed by session.
@@ -155,13 +158,36 @@ Overrides (env vars): `SLOTH_LLM_BASE_URL` / `SLOTH_LLM_MODEL` / `SLOTH_LLM_API_
 (default 19499), `E2E_BRIDGE_PORT_MM` (default 18065). The job runs in CI; set the
 `SLOTH_LLM_*` secrets to actually exercise it (otherwise it skips).
 
+### Mattermost MCP + cron E2E (delayed MCP task)
+
+`tests/mattermost_mcp_cron_e2e.rs` covers the complete
+**cron → scheduler fire → MCP tool-call → reply** path in one user-driven
+round trip. It starts a mock MCP server "A" (host), registers it into Sloth,
+enables the second-precision scheduler, and has a Mattermost user DM
+`after 10s, use mcp A to do something`. The agent schedules a near-term
+6-field (second-precision) cron job via `scheduler_add_job`; when it fires,
+the injected prompt drives the LLM to call `mcp_A__echo`, whose result is
+posted back to the user over the DM. It asserts (1) the user gets an initial
+reply, (2) the MCP `echo` tool is actually invoked, and (3) the scheduled
+reply reaches the user. It skips when the LLM gateway or Docker is unavailable.
+
+```bash
+cargo test --test mattermost_mcp_cron_e2e -- --nocapture --ignored
+```
+
+## Design docs
+
+`docs/` holds the design documentation: [architecture](docs/architecture.md),
+[message flow](docs/message-flow.md), [agent & tools](docs/agent-and-tools.md),
+and [subsystems](docs/subsystems.md). Start at [docs/README.md](docs/README.md).
+
 ## Layout
 
 ```
 src/
   config.rs        config.toml + SLOTH_* env overrides
   bridge.rs        typed OpenClaw WS envelope protocol (camelCase on the wire)
-  cron.rs          5-field UNIX-cron parser (UTC, self-contained)
+  cron.rs          UNIX-cron parser (5-field minute, or 6-field second-precision)
   scheduler.rs     in-process cron engine: add/remove/list + fire events
   session.rs       session manager: create/switch/workspace/list/delete
   mcp.rs           remote MCP client (Streamable HTTP) + hot-reload registry
