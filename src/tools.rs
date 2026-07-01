@@ -72,6 +72,8 @@ pub mod names {
     pub const MODEL_PICK: &str = "model_pick";
     pub const MEM_SET: &str = "memory_set";
     pub const MEM_RECALL: &str = "memory_recall";
+    pub const TENANT_WHOAMI: &str = "tenant_whoami";
+    pub const TENANT_LIST_MEMBERS: &str = "tenant_list_members";
     /// Prefix for invocable skill tools.
     pub const SKILL_PREFIX: &str = "skill_";
     /// Prefix for invocable A2A agent tools.
@@ -89,6 +91,11 @@ pub struct ToolRouter {
     pub catalog: Arc<crate::model_catalog::Catalog>,
     pub memory: Arc<crate::memory::MemoryStore>,
     pub hitl: Arc<HitlBroker>,
+    /// Multi-tenancy & RBAC registry. When `tenancy_enabled` is false, every
+    /// principal is treated as admin (single-tenant behavior).
+    pub tenants: Arc<crate::tenant::Tenants>,
+    /// Whether RBAC enforcement is on.
+    pub tenancy_enabled: bool,
     /// The desired MCP server list, used by the `mcp_reload` tool.
     mcp_desired: Arc<tokio::sync::Mutex<Vec<McpServerConfig>>>,
     /// The desired A2A agent list, used by the `a2a_reload` tool.
@@ -169,6 +176,8 @@ impl ToolRouter {
             catalog,
             memory,
             hitl,
+            tenants: Arc::new(crate::tenant::Tenants::default()),
+            tenancy_enabled: false,
             mcp_desired: Arc::new(tokio::sync::Mutex::new(mcp_desired)),
             a2a_desired: Arc::new(tokio::sync::Mutex::new(a2a_desired)),
             expose_mcp,
@@ -178,6 +187,20 @@ impl ToolRouter {
             expose_memory,
             model_opts: Arc::new(model_opts),
         }
+    }
+
+    /// Enable multi-tenancy & RBAC enforcement. Replaces the registry and
+    /// turns enforcement on. Returns `self` for chaining.
+    pub fn with_tenants(mut self, tenants: Arc<crate::tenant::Tenants>) -> Self {
+        self.tenants = tenants;
+        self.tenancy_enabled = true;
+        self
+    }
+
+    /// Toggle RBAC enforcement (the registry is retained either way, so
+    /// `tenant_whoami` still reports the configured roles).
+    pub fn set_tenancy_enabled(&mut self, enabled: bool) {
+        self.tenancy_enabled = enabled;
     }
 
     /// The OpenAI tool definitions to send to the model.
@@ -418,16 +441,52 @@ impl ToolRouter {
             ));
         }
 
+        // Multi-tenancy / RBAC tools. `tenant_whoami` is available to everyone
+        // (baseline chat permission); `tenant_list_members` is admin-only.
+        tools.push(tool_def(
+            names::TENANT_WHOAMI,
+            "Report the current user's tenant id, sender id, and effective role plus permissions.",
+            json!({ "type": "object", "properties": {} }),
+        ));
+        tools.push(tool_def(
+            names::TENANT_LIST_MEMBERS,
+            "List the configured tenant members and their roles (admin-only).",
+            json!({ "type": "object", "properties": {} }),
+        ));
+
         tools
     }
 
     /// Execute a tool call by name with the given arguments object.
-    /// Applies HITL gating where configured.
-    pub async fn execute(&self, tool: &str, args: &Value, sender_id: &str) -> ToolOutcome {
+    ///
+    /// Enforces RBAC (the principal must hold the tool's required permission)
+    /// **before** HITL confirmation and dispatch. A denied call returns an
+    /// error result to the model without executing or prompting the human.
+    pub async fn execute(
+        &self,
+        tool: &str,
+        args: &Value,
+        principal: &crate::tenant::Principal,
+    ) -> ToolOutcome {
+        // RBAC gate. When enforcement is off, all principals are authorized.
+        if self.tenancy_enabled {
+            match self.tenants.authorize(principal, tool).await {
+                Ok(role) => {
+                    info!(%tool, role = %role.name(), "RBAC authorized");
+                }
+                Err(e) => {
+                    info!(%tool, error = %e, "RBAC denied");
+                    return ToolOutcome::err(format!("{e:#}"));
+                }
+            }
+        }
+
         // HITL gate.
         if self.hitl.requires_confirmation(tool) {
             let summary = summarize_call(tool, args);
-            let pending = self.hitl.new_pending(tool, &summary, "default", sender_id);
+            let pending = self
+                .hitl
+                .new_pending(tool, &summary, "default", &principal.sender_id);
             info!(%tool, hitl_id = %pending.id, "HITL confirmation requested");
             // Register + surface to the runtime; it asks the human and calls
             // `hitl.resolve(...)` with the decision.
@@ -447,10 +506,17 @@ impl ToolRouter {
             }
         }
 
-        self.dispatch(tool, args, sender_id).await
+        self.dispatch(tool, args, principal).await
     }
 
-    async fn dispatch(&self, tool: &str, args: &Value, sender_id: &str) -> ToolOutcome {
+    async fn dispatch(
+        &self,
+        tool: &str,
+        args: &Value,
+        principal: &crate::tenant::Principal,
+    ) -> ToolOutcome {
+        let sender_id = &principal.sender_id;
+        let tenant = principal.tenant_id.as_str();
         match tool {
             names::SCHED_ADD => {
                 let Some(name) = args.get("name").and_then(|v| v.as_str()) else {
@@ -476,6 +542,9 @@ impl ToolRouter {
                     // Reply to the user who scheduled the job, so a fired job's
                     // output reaches them rather than broadcasting to the channel.
                     reply_to: Some(sender_id.to_string()),
+                    // Scope the job to the caller's tenant so list/remove are
+                    // tenant-isolated.
+                    tenant_id: Some(principal.tenant_id.clone()),
                 }) {
                     Ok(id) => ToolOutcome::ok(json!({ "id": id, "scheduled": true }).to_string()),
                     Err(e) => ToolOutcome::err(format!("failed to schedule: {e:#}")),
@@ -485,18 +554,30 @@ impl ToolRouter {
                 let Some(id) = args.get("id").and_then(|v| v.as_str()) else {
                     return ToolOutcome::err("missing 'id'");
                 };
-                let removed = self.scheduler.remove(id);
-                ToolOutcome::ok(json!({ "removed": removed }).to_string())
+                // Tenant-scoped remove: a caller can only remove their own
+                // tenant's jobs.
+                let removed = self.scheduler.remove_for(id, Some(tenant));
+                if !removed {
+                    return ToolOutcome::err("no such job in your tenant");
+                }
+                ToolOutcome::ok(json!({ "removed": true }).to_string())
             }
             names::SCHED_LIST => {
-                let jobs = self.scheduler.list();
+                // Only this tenant's jobs are visible.
+                let jobs = self.scheduler.list_for(Some(tenant));
                 ToolOutcome::ok(serde_json::to_string(&json!({ "jobs": jobs })).unwrap_or_default())
             }
             names::SESS_SWITCH => {
                 let Some(session_id) = args.get("session_id").and_then(|v| v.as_str()) else {
                     return ToolOutcome::err("missing 'session_id'");
                 };
-                match self.sessions.switch(sender_id, session_id).await {
+                // Key the active-session map by the principal's scope so
+                // sessions are tenant-isolated.
+                match self
+                    .sessions
+                    .switch(&principal.scope_key(), session_id)
+                    .await
+                {
                     Ok(s) => ToolOutcome::ok(serde_json::to_string(&s).unwrap_or_default()),
                     Err(e) => ToolOutcome::err(format!("{e:#}")),
                 }
@@ -675,12 +756,14 @@ impl ToolRouter {
                 let Some(value) = args.get("value").and_then(|v| v.as_str()) else {
                     return ToolOutcome::err("missing 'value'");
                 };
-                match self.memory.set(sender_id, key, value).await {
+                // Namespace memory by the principal's scope key so two senders
+                // (or the same sender across tenants) never share facts.
+                match self.memory.set(&principal.scope_key(), key, value).await {
                     Ok(()) => ToolOutcome::ok(json!({ "stored": true, "key": key }).to_string()),
                     Err(e) => ToolOutcome::err(format!("memory set failed: {e:#}")),
                 }
             }
-            names::MEM_RECALL => match self.memory.recall(sender_id).await {
+            names::MEM_RECALL => match self.memory.recall(&principal.scope_key()).await {
                 Ok(mem) => {
                     if let Some(key) = args.get("key").and_then(|v| v.as_str()) {
                         let value = mem.facts.get(key).cloned();
@@ -691,6 +774,30 @@ impl ToolRouter {
                 }
                 Err(e) => ToolOutcome::err(format!("memory recall failed: {e:#}")),
             },
+            names::TENANT_WHOAMI => {
+                let role = self.tenants.role_for(principal).await;
+                let perms = self
+                    .tenants
+                    .permissions_for_role(&role)
+                    .await
+                    .into_iter()
+                    .map(|p| format!("{p:?}"))
+                    .collect::<Vec<_>>();
+                ToolOutcome::ok(
+                    json!({
+                        "tenant_id": principal.tenant_id,
+                        "sender_id": principal.sender_id,
+                        "role": role.name(),
+                        "permissions": perms,
+                        "rbac_enabled": self.tenancy_enabled,
+                    })
+                    .to_string(),
+                )
+            }
+            names::TENANT_LIST_MEMBERS => {
+                let members = self.tenants.list_members().await;
+                ToolOutcome::ok(json!({ "members": members }).to_string())
+            }
             other => ToolOutcome::err(format!("unknown tool: {other}")),
         }
     }

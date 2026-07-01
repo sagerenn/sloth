@@ -18,6 +18,7 @@ pub mod runtime;
 pub mod scheduler;
 pub mod session;
 pub mod skill;
+pub mod tenant;
 pub mod tools;
 
 pub use config::Config;

@@ -106,12 +106,23 @@ areas to the model via OpenAI-compatible function calling (structured
     tool-call loop (configurable step cap): it sends tool definitions, executes
     any returned `tool_calls` through the router (with HITL gating), feeds
     results back, and re-queries until the model produces a final text reply.
+11. **Multi-tenancy & access control (RBAC)** — a tenant is an isolation scope
+    derived from the bridge subscription (`channel:account_id`). Conversation
+    history, memory, sessions, and scheduler jobs are all namespaced by the
+    principal (`tenant + sender`), so users never see each other's state.
+    Access control is role-based: each sender maps to a role (`admin` |
+    `member` | `guest` | a custom role), each role grants a set of
+    permissions, and each tool requires one — a caller lacking the permission
+    is denied before the tool runs (and before HITL). `tenant_whoami` reports
+    the caller's identity/role; `tenant_list_members` (admin-only) lists
+    members. Off by default (`[tenancy].enabled = false` = single-tenant).
 
 See `config.example.toml` for the `[mcp]`, `[scheduler]`, `[sessions]`,
-`[hitl]`, `[skills]`, `[a2a]`, `[models]`, `[compact]`, and `[memory]` sections,
-and the `SLOTH_SCHEDULER_*`, `SLOTH_HITL_*`, `SLOTH_MCP_EXPOSE_TOOLS`, and
-`SLOTH_SESSION_DEFAULT` env overrides. `models.example.yaml` shows the catalog
-file format.
+`[hitl]`, `[skills]`, `[a2a]`, `[models]`, `[compact]`, `[memory]`, and
+`[tenancy]` sections, and the `SLOTH_SCHEDULER_*`, `SLOTH_HITL_*`,
+`SLOTH_MCP_EXPOSE_TOOLS`, `SLOTH_SESSION_DEFAULT`, `SLOTH_TENANCY_ENABLED`,
+and `SLOTH_TENANCY_DEFAULT_ROLE` env overrides. `models.example.yaml` shows
+the catalog file format.
 
 ## Run
 
@@ -197,6 +208,7 @@ src/
   model_catalog.rs YAML model catalog + auto-pick strategies (cost/capacity/benchmarks)
   compact.rs       conversation-history auto-compactor (summarize old turns)
   memory.rs        per-sender persistent memory + system-prompt injection
+  tenant.rs        multi-tenancy & RBAC: Principal, Role, Permission, Tenants
   tools.rs         function-call tool router (all built-in + dynamic tools)
   agent.rs         async-openai chat completions + tool-calling loop + history,
                    compaction, and memory injection

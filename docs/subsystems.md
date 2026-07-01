@@ -165,6 +165,45 @@ removed files take effect without the LLM calling `skill_reload`
 (`runtime.rs:228`). The model catalog has an analogous poll ticker
 (`runtime.rs:249`).
 
+## Multi-tenancy & access control (`tenant.rs`)
+
+A **tenant** is an isolation scope derived from the bridge subscription:
+`tenant_id = "{channel}:{account_id}"` (`tenant_id_from_subscription`). A
+**principal** is the pair `(tenant_id, sender_id)` — the unit of isolation.
+Every stateful subsystem is namespaced by `Principal::scope_key()`
+(`"{tenant}/{sender}"`, sanitized), so two principals never share state:
+
+| subsystem | namespacing |
+|-----------|-------------|
+| conversation history | keyed by scope key (`agent.rs` `reply_with_tools`) |
+| persistent memory | file per scope key (`memory_set`/`memory_recall`) |
+| sessions | active-session map keyed by scope key |
+| scheduler jobs | `ScheduledJob.tenant_id`; `list_for`/`remove_for` filter by tenant |
+
+**Access control is RBAC.** Each sender resolves to a `Role` (`admin` |
+`member` | `guest` | `Custom`); each role grants a `BTreeSet<Permission>`;
+each tool name maps to a required `Permission` (`required_permission`).
+`ToolRouter::execute` calls `Tenants::authorize(principal, tool)` **before**
+HITL and before dispatch — a denied call returns a tool error to the model
+without executing or prompting the human. Builtin role → permission sets:
+
+- **admin** — everything, including `Admin` (registry reloads,
+  `tenant_list_members`).
+- **member** — chat, schedule, sessions, MCP, skills, A2A, models, memory.
+- **guest** — chat + models only.
+
+Custom roles are defined in `[[tenancy.roles]]` as a name + permission list;
+unknown custom roles fall back to guest (least privilege). Per-sender
+overrides (`[[tenancy.members]]`) may be bare sender ids (apply in every
+tenant) or `tenant/sender` scope keys (apply only in that tenant); both take
+precedence over `default_role`.
+
+When `[tenancy].enabled = false`, enforcement is off and every principal is
+authorized — the default, preserving single-tenant behavior. The `tenant_whoami`
+tool (baseline `chat` permission) reports the caller's tenant, sender, role,
+and permissions; `tenant_list_members` (admin-only) lists configured members.
+Env overrides: `SLOTH_TENANCY_ENABLED`, `SLOTH_TENANCY_DEFAULT_ROLE`.
+
 ## Configuration
 
 `Config` (`config.rs:13`) loads `config.toml` (optional; falls back to

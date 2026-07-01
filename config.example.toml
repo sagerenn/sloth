@@ -82,3 +82,38 @@ timeout_secs = 120
 # Glob patterns of tool names requiring confirmation. Empty list = confirm all
 # gated tools. Examples: ["scheduler_*", "mcp_*"]
 confirm_tools = []
+
+# ──────────────────────────── Multi-Tenancy & Access Control ────────────────────────────
+# A tenant is an isolation scope derived from the bridge subscription
+# (`channel:account_id`). All stateful subsystems — conversation history,
+# memory, sessions, and scheduler jobs — are namespaced by the principal
+# (tenant + sender), so users never see each other's state.
+#
+# Access control is role-based (RBAC). Each sender maps to a role; each role
+# grants a set of permissions; each tool requires one permission. A caller
+# lacking the permission is denied before the tool runs (and before HITL).
+# When `enabled = false`, RBAC is off and every principal is authorized
+# (single-tenant behavior — the default for existing setups).
+[tenancy]
+enabled = false
+# Default role for senders with no explicit [[tenancy.members]] assignment.
+# Builtins: admin | member | guest. Or name a custom role defined below.
+default_role = "member"
+
+# Custom roles: a name + the permissions it grants. Permission names:
+#   chat, schedule, manage_sessions, use_mcp, use_skills, use_a2a,
+#   use_models, use_memory, admin
+# [[tenancy.roles]]
+# name = "operator"
+# permissions = ["chat", "schedule", "use_mcp", "use_models"]
+
+# Per-sender role assignments. `sender` is either a bare sender id (applies
+# in every tenant) or a `tenant/sender` scope key (applies only in that
+# tenant). The tenant id is `{channel}:{account_id}` (sanitized).
+# [[tenancy.members]]
+# sender = "alice"            # bare: alice is an admin in every tenant
+# role = "admin"
+# [[tenancy.members]]
+# sender = "mattermost:default/bob"  # tenant-scoped: bob is a guest only here
+# role = "guest"
+

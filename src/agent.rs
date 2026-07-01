@@ -219,21 +219,25 @@ impl ChatAgent {
     /// deterministically, rather than free-text.
     pub async fn reply_with_tools(
         &self,
-        sender_id: &str,
+        principal: &crate::tenant::Principal,
         user_text: &str,
         router: &ToolRouter,
         max_steps: usize,
     ) -> Result<Reply> {
+        // History is keyed by the principal's scope key so two principals
+        // never share conversation context.
+        let scope = principal.scope_key();
         let span = tracing::info_span!(
             "chat.complete.tools",
-            sender = %sender_id,
+            sender = %principal.sender_id,
+            tenant = %principal.tenant_id,
             inbound_chars = user_text.len(),
             model = %self.inner.model,
         );
         let _enter = span.enter();
 
         let tools = router.tool_definitions().await;
-        let mut messages = self.history_messages(sender_id).await?;
+        let mut messages = self.history_messages(&scope).await?;
         messages.push(
             ChatCompletionRequestUserMessageArgs::default()
                 .content(user_text)
@@ -317,7 +321,7 @@ impl ChatAgent {
                 let ChatCompletionMessageToolCalls::Function(call) = tc else {
                     continue;
                 };
-                let outcome = self.run_tool_call(call, router, sender_id).await;
+                let outcome = self.run_tool_call(call, router, principal).await;
                 let tool_msg = ChatCompletionRequestToolMessageArgs::default()
                     .content(outcome.content)
                     .tool_call_id(call.id.clone())
@@ -341,7 +345,7 @@ impl ChatAgent {
 
         // Persist the user turn + final reply into history (intermediate tool
         // rounds are not stored — they're transient scaffolding).
-        self.record_turn(sender_id, user_text, &final_text).await;
+        self.record_turn(&scope, user_text, &final_text).await;
 
         Ok(Reply {
             text: final_text,
@@ -355,7 +359,7 @@ impl ChatAgent {
         &self,
         tc: &ChatCompletionMessageToolCall,
         router: &ToolRouter,
-        sender_id: &str,
+        principal: &crate::tenant::Principal,
     ) -> crate::tools::ToolOutcome {
         let name = &tc.function.name;
         let args: serde_json::Value = if tc.function.arguments.is_empty() {
@@ -364,7 +368,7 @@ impl ChatAgent {
             serde_json::from_str(&tc.function.arguments).unwrap_or(serde_json::Value::Null)
         };
         tracing::info!(%name, args = ?args, "executing tool call");
-        router.execute(name, &args, sender_id).await
+        router.execute(name, &args, principal).await
     }
 
     /// Build the system prompt + prior-history messages (no current turn).

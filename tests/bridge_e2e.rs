@@ -19,7 +19,7 @@ use serde_json::{Value, json};
 use sloth_agent::config::{
     A2aConfig, BridgeConfig, CompactConfig, Config, HistoryConfig, HitlConfig, LlmConfig,
     McpConfig, MemoryConfig, ModelCatalogConfig, ObservabilityConfig, SchedulerConfig,
-    SessionConfig, SkillsConfig,
+    SessionConfig, SkillsConfig, TenancyConfig,
 };
 use tokio::net::TcpListener;
 use tokio::sync::oneshot;
@@ -82,6 +82,7 @@ fn test_config(ws_url: String) -> Config {
         models: ModelCatalogConfig::default(),
         compact: CompactConfig::default(),
         memory: MemoryConfig::default(),
+        tenancy: TenancyConfig::default(),
     }
 }
 

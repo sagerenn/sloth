@@ -19,7 +19,7 @@ use uuid::Uuid;
 use crate::cron::Cron;
 
 /// A scheduled job.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct ScheduledJob {
     /// Stable id (assigned on insertion).
     #[serde(default)]
@@ -33,6 +33,11 @@ pub struct ScheduledJob {
     pub prompt: String,
     /// Session id the firing prompt runs under.
     pub session_id: String,
+    /// Tenant id the job belongs to. Used to scope `list`/`remove` so a
+    /// sender only sees/operates on their own tenant's jobs. `None` is
+    /// treated as the empty tenant (legacy / unscoped jobs).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tenant_id: Option<String>,
     /// Outbound `to` target the fired job's reply is sent to. When `None`,
     /// the runtime falls back to the channel (broadcast). Set from the
     /// originating sender so a fired job replies to the user who scheduled it
@@ -56,6 +61,9 @@ pub struct FiredJob {
     pub name: String,
     pub prompt: String,
     pub session_id: String,
+    /// Tenant id the job belongs to (copied from the job). The runtime uses
+    /// it to dispatch the fired prompt under the correct tenant's principal.
+    pub tenant_id: Option<String>,
     /// Outbound `to` target for the fired job's reply (copied from the job).
     pub reply_to: Option<String>,
     /// The instant (epoch secs) the job fired at.
@@ -110,9 +118,34 @@ impl Scheduler {
         self.inner.jobs.remove(id).is_some()
     }
 
+    /// Remove a job by id only if it belongs to `tenant`. Returns true if
+    /// removed. `tenant=None` matches only unscoped (legacy) jobs.
+    pub fn remove_for(&self, id: &str, tenant: Option<&str>) -> bool {
+        if let Some(entry) = self.inner.jobs.get(id) {
+            if entry.job.tenant_id.as_deref() == tenant {
+                drop(entry);
+                self.inner.jobs.remove(id).is_some()
+            } else {
+                false
+            }
+        } else {
+            false
+        }
+    }
+
     /// List all scheduled jobs (parsed cron not exposed).
     pub fn list(&self) -> Vec<ScheduledJob> {
         self.inner.jobs.iter().map(|e| e.job.clone()).collect()
+    }
+
+    /// List only jobs belonging to `tenant`. `tenant=None` lists unscoped jobs.
+    pub fn list_for(&self, tenant: Option<&str>) -> Vec<ScheduledJob> {
+        self.inner
+            .jobs
+            .iter()
+            .filter(|e| e.job.tenant_id.as_deref() == tenant)
+            .map(|e| e.job.clone())
+            .collect()
     }
 
     /// Get a job by id.
@@ -136,6 +169,7 @@ impl Scheduler {
                     name: e.job.name.clone(),
                     prompt: e.job.prompt.clone(),
                     session_id: e.job.session_id.clone(),
+                    tenant_id: e.job.tenant_id.clone(),
                     reply_to: e.job.reply_to.clone(),
                     fired_at: e.next_fire,
                 });
@@ -219,7 +253,7 @@ mod tests {
                 cron: "*/1 * * * * *".into(),
                 prompt: "tick".into(),
                 session_id: "default".into(),
-                reply_to: None,
+                ..Default::default()
             })
             .unwrap();
         let (_stx, srx) = tokio::sync::oneshot::channel::<()>();
@@ -244,7 +278,7 @@ mod tests {
                 cron: "* * * * *".into(),
                 prompt: "hello".into(),
                 session_id: "default".into(),
-                reply_to: None,
+                ..Default::default()
             },
             now,
         )
@@ -273,7 +307,7 @@ mod tests {
                     cron: "*/5 * * * *".into(),
                     prompt: "p".into(),
                     session_id: "default".into(),
-                    reply_to: None,
+                    ..Default::default()
                 },
                 0,
             )
@@ -295,7 +329,7 @@ mod tests {
                     cron: "not a cron".into(),
                     prompt: "p".into(),
                     session_id: "default".into(),
-                    reply_to: None,
+                    ..Default::default()
                 },
                 0,
             )

@@ -32,7 +32,7 @@ use common::{
 use sloth_agent::config::{
     A2aConfig, BridgeConfig, CompactConfig, Config, HistoryConfig, HitlConfig, LlmConfig,
     McpConfig, McpServerConfig, MemoryConfig, ModelCatalogConfig, ObservabilityConfig,
-    SchedulerConfig, SessionConfig, SkillsConfig,
+    SchedulerConfig, SessionConfig, SkillsConfig, TenancyConfig,
 };
 
 /// Sloth config pointed at the live bridge, with MCP server A registered and
@@ -92,6 +92,7 @@ fn sloth_config(bridge_ws_url: String, mcp: &MockMcp) -> Config {
         models: ModelCatalogConfig::default(),
         compact: CompactConfig::default(),
         memory: MemoryConfig::default(),
+        tenancy: TenancyConfig::default(),
     }
 }
 

@@ -39,6 +39,8 @@ pub struct Config {
     pub compact: CompactConfig,
     /// Persistent memory.
     pub memory: MemoryConfig,
+    /// Multi-tenancy & RBAC.
+    pub tenancy: TenancyConfig,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -373,6 +375,58 @@ impl Default for MemoryConfig {
     }
 }
 
+// ─── Multi-tenancy & RBAC ────────────────────────────────────────────────────
+
+/// A custom role: a name plus the permissions it grants.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(default)]
+pub struct TenancyRoleConfig {
+    /// Role name (referenced by `[[tenancy.members]]` role or default_role).
+    pub name: String,
+    /// Permission names granted: `chat`, `schedule`, `manage_sessions`,
+    /// `use_mcp`, `use_skills`, `use_a2a`, `use_models`, `use_memory`, `admin`.
+    pub permissions: Vec<String>,
+}
+
+/// A per-sender role assignment.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(default)]
+pub struct TenancyMemberConfig {
+    /// Sender identity. Either a bare sender id (applies in every tenant) or
+    /// a `tenant/sender` scope key (applies only in that tenant). Bare ids are
+    /// matched against the principal's `sender_id` and `scope_key()`.
+    pub sender: String,
+    /// Role name: `admin` | `member` | `guest` | a custom role name.
+    pub role: String,
+}
+
+/// Multi-tenancy & access-control config.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
+pub struct TenancyConfig {
+    /// Master switch. When false, RBAC is disabled (all principals get the
+    /// `admin` role) — preserves single-tenant behavior for existing setups.
+    pub enabled: bool,
+    /// Default role for senders with no explicit assignment.
+    pub default_role: String,
+    /// Custom roles (permission sets). Builtin `admin`/`member`/`guest` need
+    /// not be listed here.
+    pub roles: Vec<TenancyRoleConfig>,
+    /// Per-sender role assignments.
+    pub members: Vec<TenancyMemberConfig>,
+}
+
+impl Default for TenancyConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            default_role: "member".to_string(),
+            roles: Vec::new(),
+            members: Vec::new(),
+        }
+    }
+}
+
 impl Config {
     /// Load config from `config.toml` (if present) with environment overrides.
     #[allow(dead_code)]
@@ -450,6 +504,12 @@ impl Config {
         }
         if let Ok(v) = std::env::var("SLOTH_MCP_EXPOSE_TOOLS") {
             self.mcp.expose_tools = matches!(v.as_str(), "1" | "true" | "yes");
+        }
+        if let Ok(v) = std::env::var("SLOTH_TENANCY_ENABLED") {
+            self.tenancy.enabled = matches!(v.as_str(), "1" | "true" | "yes");
+        }
+        if let Ok(v) = std::env::var("SLOTH_TENANCY_DEFAULT_ROLE") {
+            self.tenancy.default_role = v;
         }
     }
 

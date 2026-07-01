@@ -24,7 +24,13 @@ use sloth_agent::hitl::HitlBroker;
 use sloth_agent::mcp::McpRegistry;
 use sloth_agent::scheduler::{ScheduledJob, Scheduler};
 use sloth_agent::session::SessionManager;
+use sloth_agent::tenant::Principal;
 use sloth_agent::tools::ToolRouter;
+
+/// A test principal "alice" in the "test" tenant.
+fn alice() -> Principal {
+    Principal::new("test", "alice")
+}
 
 // ──────────────────────────── helpers ────────────────────────────
 
@@ -83,7 +89,7 @@ async fn scheduler_fires_due_job_and_reschedules() {
                 cron: "* * * * *".into(),
                 prompt: "tick".into(),
                 session_id: "default".into(),
-                reply_to: None,
+                ..Default::default()
             },
             now,
         )
@@ -169,7 +175,7 @@ async fn hitl_gate_blocks_until_approved_then_runs() {
     });
     let router_c = router.clone();
     let task =
-        tokio::spawn(async move { router_c.execute("scheduler_add_job", &args, "alice").await });
+        tokio::spawn(async move { router_c.execute("scheduler_add_job", &args, &alice()).await });
 
     // Receive the pending confirmation and approve it.
     let pending = tokio::time::timeout(Duration::from_secs(2), pending_rx.recv())
@@ -221,7 +227,7 @@ async fn hitl_deny_blocks_tool() {
     let args = json!({ "name": "x", "cron": "* * * * *", "prompt": "p" });
     let router_c = router.clone();
     let task =
-        tokio::spawn(async move { router_c.execute("scheduler_add_job", &args, "alice").await });
+        tokio::spawn(async move { router_c.execute("scheduler_add_job", &args, &alice()).await });
     let pending = pending_rx.recv().await.expect("no pending");
     broker.resolve(&pending.id, Outcome::Denied).await;
     let outcome = task.await.unwrap();
@@ -493,7 +499,7 @@ async fn router_exposes_mcp_tool_and_calls_it_with_hitl_approve() {
 
     // Calling it directly should NOT require HITL (MCP not in confirm list).
     let outcome = router
-        .execute("mcp_mock__echo", &json!({ "message": "router" }), "alice")
+        .execute("mcp_mock__echo", &json!({ "message": "router" }), &alice())
         .await;
     assert!(!outcome.is_error);
     assert_eq!(outcome.content, "echo:router");
@@ -542,7 +548,7 @@ async fn llm_function_call_lists_scheduled_jobs() {
                 cron: "0 9 * * *".into(),
                 prompt: "morning".into(),
                 session_id: "default".into(),
-                reply_to: None,
+                ..Default::default()
             },
             0,
         )
@@ -575,7 +581,7 @@ async fn llm_function_call_lists_scheduled_jobs() {
 
     let reply = agent
         .reply_with_tools(
-            "test-sender",
+            &alice(),
             "Call the scheduler_list_jobs tool and tell me how many jobs are scheduled.",
             &router,
             4,
@@ -703,7 +709,7 @@ async fn router_exposes_skill_tool_and_invokes_it() {
 
     // Invoking through the router expands the body.
     let outcome = router
-        .execute("skill_greet", &json!({ "who": "agent" }), "alice")
+        .execute("skill_greet", &json!({ "who": "agent" }), &alice())
         .await;
     assert!(!outcome.is_error);
     assert_eq!(outcome.content, "Hello, agent!\n");
@@ -898,7 +904,7 @@ async fn router_exposes_a2a_tool_and_calls_it() {
 
     // Calling through the router returns the echoed reply.
     let outcome = router
-        .execute("a2a_mock", &json!({ "prompt": "via router" }), "alice")
+        .execute("a2a_mock", &json!({ "prompt": "via router" }), &alice())
         .await;
     assert!(!outcome.is_error, "content was: {}", outcome.content);
     assert!(outcome.content.contains("You said: via router"));
@@ -943,13 +949,13 @@ async fn model_catalog_pick_and_list_through_router() {
     // Through the router: model_list returns both, model_pick returns smart.
     let mem_dir = std::env::temp_dir().join(format!("sloth-mem-cat-{}", uuid_v4()));
     let router = make_router_with_catalog(cat.clone(), mem_dir).await;
-    let list_outcome = router.execute("model_list", &json!({}), "alice").await;
+    let list_outcome = router.execute("model_list", &json!({}), &alice()).await;
     assert!(!list_outcome.is_error);
     assert!(listcome_contains(&list_outcome.content, "smart"));
     assert!(listcome_contains(&list_outcome.content, "cheap"));
 
     let pick_outcome = router
-        .execute("model_pick", &json!({ "strategy": "best_score" }), "alice")
+        .execute("model_pick", &json!({ "strategy": "best_score" }), &alice())
         .await;
     assert!(!pick_outcome.is_error, "{}", pick_outcome.content);
     assert!(pick_outcome.content.contains("smart"));
@@ -1009,7 +1015,7 @@ async fn memory_set_recall_persists_through_router() {
         .execute(
             "memory_set",
             &json!({ "key": "preferred_language", "value": "Rust" }),
-            "alice",
+            &alice(),
         )
         .await;
     assert!(!set.is_error, "{}", set.content);
@@ -1019,7 +1025,7 @@ async fn memory_set_recall_persists_through_router() {
         .execute(
             "memory_recall",
             &json!({ "key": "preferred_language" }),
-            "alice",
+            &alice(),
         )
         .await;
     assert!(!rec.is_error, "{}", rec.content);
@@ -1027,14 +1033,16 @@ async fn memory_set_recall_persists_through_router() {
     assert_eq!(v["value"].as_str(), Some("Rust"));
 
     // Recall all (no key).
-    let all = router.execute("memory_recall", &json!({}), "alice").await;
+    let all = router.execute("memory_recall", &json!({}), &alice()).await;
     let allv: Value = serde_json::from_str(&all.content).unwrap();
     assert!(allv["facts"]["preferred_language"].as_str() == Some("Rust"));
 
-    // Persistence across a brand-new store reading the same dir.
+    // Persistence across a brand-new store reading the same dir. Memory is
+    // namespaced by the principal's scope key ("test/alice" → test_alice.toml),
+    // so recall must use the same key the router wrote under.
     let store2 = sloth_agent::memory::MemoryStore::new();
     store2.set_dir(&mem_dir).await;
-    let m = store2.recall("alice").await.unwrap();
+    let m = store2.recall(&alice().scope_key()).await.unwrap();
     assert_eq!(m.facts.get("preferred_language").unwrap(), "Rust");
 
     std::fs::remove_dir_all(&mem_dir).ok();
@@ -1049,6 +1057,173 @@ async fn memory_prompt_snippet_renders() {
     let s = m.to_prompt_snippet().unwrap();
     assert!(s.contains("Known facts about this user"));
     assert!(s.contains("timezone: UTC"));
+}
+
+// ──────────────────────────── multi-tenancy / RBAC ────────────────────────────
+
+/// A bare router (no MCP/A2A servers) with tenancy enforcement on.
+async fn rbac_router(cfg: &sloth_agent::config::TenancyConfig) -> ToolRouter {
+    let scheduler = Arc::new(Scheduler::new());
+    let sessions = Arc::new(SessionManager::new(
+        "default",
+        std::env::temp_dir().join(format!("sloth-rbac-{}", uuid_v4())),
+    ));
+    let mcp = Arc::new(McpRegistry::new());
+    let skills = Arc::new(sloth_agent::skill::SkillRegistry::new());
+    let a2a = Arc::new(sloth_agent::a2a::A2aRegistry::new());
+    let catalog = Arc::new(sloth_agent::model_catalog::Catalog::new());
+    let memory = Arc::new(sloth_agent::memory::MemoryStore::new());
+    let broker = Arc::new(HitlBroker::new(HitlConfig {
+        enabled: false,
+        ..Default::default()
+    }));
+    let tenants = Arc::new(sloth_agent::tenant::Tenants::from_config(cfg));
+    ToolRouter::new(
+        scheduler,
+        sessions,
+        mcp,
+        skills,
+        a2a,
+        catalog,
+        memory,
+        broker,
+        Vec::new(),
+        Vec::new(),
+        true,
+        true,
+        true,
+        true,
+        true,
+    )
+    .with_tenants(tenants)
+}
+
+#[tokio::test]
+async fn rbac_denies_admin_tool_for_guest_allows_for_admin() {
+    let cfg = sloth_agent::config::TenancyConfig {
+        enabled: true,
+        default_role: "guest".into(),
+        roles: Vec::new(),
+        members: vec![sloth_agent::config::TenancyMemberConfig {
+            sender: "alice".into(),
+            role: "admin".into(),
+        }],
+    };
+    let router = rbac_router(&cfg).await;
+
+    // admin alice can schedule.
+    let ok = router
+        .execute(
+            "scheduler_add_job",
+            &json!({ "name": "j", "cron": "0 9 * * *", "prompt": "hi" }),
+            &Principal::new("t1", "alice"),
+        )
+        .await;
+    assert!(!ok.is_error, "{}", ok.content);
+
+    // guest bob is denied scheduling (error result, no execution).
+    let denied = router
+        .execute(
+            "scheduler_add_job",
+            &json!({ "name": "j", "cron": "0 9 * * *", "prompt": "hi" }),
+            &Principal::new("t1", "bob"),
+        )
+        .await;
+    assert!(denied.is_error);
+    assert!(denied.content.contains("access denied"));
+
+    // bob's denied call did NOT create a job: list returns only alice's.
+    let listed = router
+        .execute(
+            "scheduler_list_jobs",
+            &json!({}),
+            &Principal::new("t1", "alice"),
+        )
+        .await;
+    let v: Value = serde_json::from_str(&listed.content).unwrap();
+    assert_eq!(v["jobs"].as_array().unwrap().len(), 1);
+
+    // whoami reports the role.
+    let who = router
+        .execute("tenant_whoami", &json!({}), &Principal::new("t1", "bob"))
+        .await;
+    let w: Value = serde_json::from_str(&who.content).unwrap();
+    assert_eq!(w["role"].as_str(), Some("guest"));
+
+    // tenant_list_members is admin-only; bob is denied.
+    let members_denied = router
+        .execute(
+            "tenant_list_members",
+            &json!({}),
+            &Principal::new("t1", "bob"),
+        )
+        .await;
+    assert!(members_denied.is_error);
+    // alice can list members.
+    let members_ok = router
+        .execute(
+            "tenant_list_members",
+            &json!({}),
+            &Principal::new("t1", "alice"),
+        )
+        .await;
+    assert!(!members_ok.is_error);
+}
+
+#[tokio::test]
+async fn rbac_scheduler_jobs_are_tenant_isolated() {
+    let cfg = sloth_agent::config::TenancyConfig {
+        enabled: true,
+        default_role: "member".into(),
+        roles: Vec::new(),
+        members: Vec::new(),
+    };
+    let router = rbac_router(&cfg).await;
+
+    // alice in t1 schedules a job.
+    let a = router
+        .execute(
+            "scheduler_add_job",
+            &json!({ "name": "a", "cron": "0 9 * * *", "prompt": "pa" }),
+            &Principal::new("t1", "alice"),
+        )
+        .await;
+    assert!(!a.is_error);
+    let id_a: String = serde_json::from_str::<Value>(&a.content).unwrap()["id"]
+        .as_str()
+        .unwrap()
+        .to_string();
+
+    // bob in t2 lists jobs → sees none (different tenant).
+    let bob_list = router
+        .execute(
+            "scheduler_list_jobs",
+            &json!({}),
+            &Principal::new("t2", "bob"),
+        )
+        .await;
+    let v: Value = serde_json::from_str(&bob_list.content).unwrap();
+    assert!(v["jobs"].as_array().unwrap().is_empty());
+
+    // bob cannot remove alice's job (cross-tenant).
+    let cross = router
+        .execute(
+            "scheduler_remove_job",
+            &json!({ "id": id_a }),
+            &Principal::new("t2", "bob"),
+        )
+        .await;
+    assert!(cross.is_error);
+
+    // alice can remove her own job.
+    let own = router
+        .execute(
+            "scheduler_remove_job",
+            &json!({ "id": id_a }),
+            &Principal::new("t1", "alice"),
+        )
+        .await;
+    assert!(!own.is_error);
 }
 
 // ──────────────────────────── auto-compact logic ────────────────────────────
@@ -1112,7 +1287,7 @@ async fn runtime_auto_picks_model_from_catalog() {
     use sloth_agent::config::{
         A2aConfig, BridgeConfig, CompactConfig, Config, HistoryConfig, HitlConfig, LlmConfig,
         McpConfig, MemoryConfig, ModelCatalogConfig, ObservabilityConfig, SchedulerConfig,
-        SessionConfig, SkillsConfig,
+        SessionConfig, SkillsConfig, TenancyConfig,
     };
     if !endpoint_reachable().await {
         eprintln!("skipping: LLM endpoint not reachable");
@@ -1173,6 +1348,7 @@ async fn runtime_auto_picks_model_from_catalog() {
         },
         compact: CompactConfig::default(),
         memory: MemoryConfig::default(),
+        tenancy: TenancyConfig::default(),
     };
 
     let ctx = sloth_agent::runtime::AgentContext::build(&cfg)

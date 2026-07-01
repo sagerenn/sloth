@@ -42,6 +42,10 @@ pub struct AgentContext {
     pub catalog: Arc<Catalog>,
     pub memory: Arc<MemoryStore>,
     pub hitl: Arc<HitlBroker>,
+    /// Multi-tenancy & RBAC registry.
+    pub tenants: Arc<crate::tenant::Tenants>,
+    /// Whether RBAC enforcement is on (mirrors `cfg.tenancy.enabled`).
+    pub tenancy_enabled: bool,
     /// Maximum tool-call rounds per reply.
     pub max_tool_steps: usize,
     /// Effective model id (either the fixed `llm.model` or catalog-picked).
@@ -138,6 +142,21 @@ impl AgentContext {
             memory.set_dir(dir).await;
         }
 
+        // Multi-tenancy & RBAC registry. Built from config; enforcement is on
+        // only when `[tenancy].enabled = true`. When off, the router treats
+        // every principal as authorized (single-tenant behavior).
+        let tenants = Arc::new(crate::tenant::Tenants::from_config(&cfg.tenancy));
+        let tenancy_enabled = cfg.tenancy.enabled;
+        if tenancy_enabled {
+            tracing::info!(
+                default_role = %cfg.tenancy.default_role,
+                members = cfg.tenancy.members.len(),
+                "multi-tenancy & RBAC enabled"
+            );
+        } else {
+            tracing::info!("multi-tenancy & RBAC disabled (single-tenant mode)");
+        }
+
         let router = ToolRouter::new(
             scheduler.clone(),
             sessions.clone(),
@@ -154,7 +173,19 @@ impl AgentContext {
             cfg.a2a.expose_tools,
             cfg.models.expose_tools,
             cfg.memory.expose_tools,
-        );
+        )
+        .with_tenants(tenants.clone());
+        // When tenancy is disabled, turn enforcement back off (with_tenants
+        // flips it on; we re-establish the configured state).
+        let router = if tenancy_enabled {
+            router
+        } else {
+            // Reconstruct with enforcement off but keep the registry for
+            // `tenant_whoami` diagnostics (reports rbac_enabled=false).
+            let mut r = router;
+            r.set_tenancy_enabled(false);
+            r
+        };
 
         Ok(Self {
             agent,
@@ -167,6 +198,8 @@ impl AgentContext {
             catalog,
             memory,
             hitl,
+            tenants,
+            tenancy_enabled,
             max_tool_steps: 8,
             model,
         })
@@ -387,7 +420,7 @@ async fn run_session(
             // Fired scheduled job → inject as a synthetic agent prompt.
             job = async { match sched_rx.as_mut() { Some(r) => r.recv().await, None => None } } => {
                 if let Some(job) = job {
-                    handle_fired_job(cfg, ctx, &tx, &channel, &account_id, job).await;
+                    handle_fired_job(ctx, &tx, &channel, &account_id, job).await;
                 }
                 continue;
             }
@@ -460,7 +493,6 @@ async fn run_session(
 /// A scheduled job fired: run its prompt through the agent and reply to the
 /// channel (so the scheduler's output is visible to the user).
 async fn handle_fired_job(
-    cfg: &Config,
     ctx: &AgentContext,
     tx: &mpsc::Sender<Envelope>,
     channel: &str,
@@ -469,10 +501,19 @@ async fn handle_fired_job(
 ) {
     tracing::info!(job = %job.id, name = %job.name, session = %job.session_id, "dispatching fired job");
     let prompt = format!("[scheduled task: {}]\n{}", job.name, job.prompt);
-    let _session = cfg.sessions.default_session.as_str();
+    // Reconstruct the principal that owns the job: its tenant + the sender who
+    // scheduled it (captured as `reply_to`). History for the fired prompt is
+    // keyed by this principal's scope, matching the key used when the job was
+    // created (see `tools.rs::SCHED_ADD`).
+    let tenant_id = job.tenant_id.clone().unwrap_or_default();
+    let sender_id = job
+        .reply_to
+        .clone()
+        .unwrap_or_else(|| job.session_id.clone());
+    let principal = crate::tenant::Principal::new(tenant_id, sender_id);
     match ctx
         .agent
-        .reply_with_tools(&job.session_id, &prompt, &ctx.router, ctx.max_tool_steps)
+        .reply_with_tools(&principal, &prompt, &ctx.router, ctx.max_tool_steps)
         .await
     {
         Ok(reply) => {
@@ -617,11 +658,15 @@ async fn handle_text(
                 // Not the relevant pending request: fall through and treat the
                 // message as a normal prompt.
             }
-            // Generate a reply (tool-augmented).
+            // Generate a reply (tool-augmented). Derive the principal from the
+            // subscription (tenant) + inbound sender id; RBAC + state
+            // namespacing flow from it.
             let sender_id = msg.sender_id.clone();
+            let tenant_id = crate::tenant::tenant_id_from_subscription(channel, account_id);
+            let principal = crate::tenant::Principal::new(tenant_id, sender_id.clone());
             let reply = match ctx
                 .agent
-                .reply_with_tools(&sender_id, user_text, &ctx.router, ctx.max_tool_steps)
+                .reply_with_tools(&principal, user_text, &ctx.router, ctx.max_tool_steps)
                 .await
             {
                 Ok(r) => r,
